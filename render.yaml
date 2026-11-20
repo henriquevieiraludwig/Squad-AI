@@ -4,7 +4,7 @@ services:
   - type: web
     name: squad-ai
     runtime: node
-    plan: starter
+    plan: free # troque para starter quando começar a vender (sempre ligado)
     region: oregon
     buildCommand: npm ci && npm run build
     startCommand: npm start
@@ -17,10 +17,12 @@ services:
         sync: false # Supabase: Connect > Session pooler (porta 5432), com a senha do banco
       - key: ENCRYPTION_KEY
         generateValue: true # 32 bytes aleatórios em base64. Nunca troque depois de criado.
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false # seu e-mail: o link do primeiro acesso aparece em Logs
       - key: PUBLIC_URL
-        sync: false # ex.: https://app.squadai.com.br
+        sync: false # opcional: só quando tiver domínio próprio (sem ele, usa o endereço do Render)
       - key: APP_URL
-        sync: false # normalmente igual ao PUBLIC_URL
+        sync: false # opcional: deixe em branco
       - key: PARTNER_SUBDOMAIN_BASE
         sync: false # ex.: squadai.com.br (parceiros ganham parceiro.squadai.com.br)
       - key: ANTHROPIC_API_KEY

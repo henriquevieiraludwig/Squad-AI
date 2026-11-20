@@ -10,7 +10,8 @@ export class ConnectorError extends Error {
 }
 
 export const TIMEZONE = process.env.DEFAULT_TIMEZONE || 'America/Sao_Paulo';
-export const PUBLIC_URL = (process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3001}`).replace(/\/$/, '');
+// RENDER_EXTERNAL_URL é preenchida pelo próprio Render com o endereço do serviço.
+export const PUBLIC_URL = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 3001}`).replace(/\/$/, '');
 export const APP_URL = (process.env.APP_URL || PUBLIC_URL).replace(/\/$/, '');
 
 // Faz a chamada HTTP e transforma falhas em mensagens que o agente e a equipe entendem.

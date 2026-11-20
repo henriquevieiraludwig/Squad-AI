@@ -114,7 +114,7 @@ export async function partnerBaseUrl(partner) {
     const d = await db.get('SELECT domain FROM partner_domains WHERE partner_id = $1 ORDER BY created_at LIMIT 1', [partner.id]);
     if (d) return `https://${d.domain}`;
   }
-  return (process.env.APP_URL || process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3001}`).replace(/\/$/, '');
+  return (process.env.APP_URL || process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 3001}`).replace(/\/$/, '');
 }
 
 // ---------- Apps OAuth próprios do parceiro (opcional) ----------

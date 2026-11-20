@@ -12,6 +12,8 @@ import { registerIntegrationRoutes } from './routes/integrations.js';
 import { registerPartnerRoutes } from './routes/partner.js';
 import { registerJobHandlers } from './job-handlers.js';
 import { startWorker } from './jobs.js';
+import { createToken } from './routes/auth.js';
+import { partnerBaseUrl } from './brand.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 const VERSION = process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || 'dev';
@@ -79,11 +81,23 @@ export async function start() {
     Sentry.init({ dsn: process.env.SENTRY_DSN, environment: process.env.NODE_ENV || 'development', release: VERSION, tracesSampleRate: 0.1 });
   }
   await initDb();
-  await ensureDefaultPartner();
+  const platform = await ensureDefaultPartner();
+  await bootstrapAdmin(platform);
   registerJobHandlers();
   await startWorker();
   const app = createApp();
   return app.listen(PORT, () => console.log(`Squad AI ouvindo em http://localhost:${PORT} (banco: ${db.kind})`));
+}
+
+// Hospedagens sem terminal (ex.: Render grátis): com BOOTSTRAP_ADMIN_EMAIL definido e nenhum
+// administrador da plataforma ainda, cria um convite e mostra o link no log do servidor.
+async function bootstrapAdmin(platform) {
+  const email = String(process.env.BOOTSTRAP_ADMIN_EMAIL || '').trim().toLowerCase();
+  if (!email) return;
+  const admin = await db.get('SELECT 1 FROM users WHERE partner_id = $1 AND is_partner_admin', [platform.id]);
+  if (admin) return;
+  const raw = await createToken({ kind: 'convite', partnerId: platform.id, email, role: 'partner_admin', ttlMs: 7 * 86_400_000 });
+  console.log(`\n[primeiro acesso] Abra este link para criar o administrador da plataforma (${email}):\n${await partnerBaseUrl(platform)}/convite?token=${raw}\n`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

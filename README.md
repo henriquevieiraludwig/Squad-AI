@@ -59,7 +59,7 @@ As tabelas ficam com RLS ligado e sem políticas: nada é acessível pela API p�
 
 ## Produção (Render)
 
-O arquivo `render.yaml` cria o servidor: no Render, **New > Blueprint** e escolha este repositório. Preencha as variáveis marcadas como `sync: false` (inclusive `DATABASE_URL`, da Supabase). Depois do primeiro deploy, abra o Shell do serviço e rode `npm run create-admin -- seu@email`.
+O arquivo `render.yaml` cria o servidor: no Render, **New > Blueprint** e escolha este repositório. Preencha as variáveis marcadas como `sync: false` (inclusive `DATABASE_URL`, da Supabase). O plano configurado é o gratuito (o site dorme após 15 minutos sem visitas); troque para Starter quando começar a vender. Para o primeiro acesso, defina `BOOTSTRAP_ADMIN_EMAIL` com o seu e-mail: ao ligar, o servidor mostra em **Logs** o link para criar o administrador. Com terminal disponível, também dá para usar `npm run create-admin -- seu@email`.
 
 Variáveis principais (todas em `.env.example`): `DATABASE_URL`, `ENCRYPTION_KEY` (nunca troque depois de criada), `PUBLIC_URL`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY` e `EMAIL_FROM`, as credenciais dos apps Microsoft, Google e Slack e, opcionalmente, `SENTRY_DSN`.
 
