@@ -427,8 +427,8 @@
   margin: 0;
   padding: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 14px;
 }
 
 .platforms li {
@@ -609,5 +609,19 @@
   }
   .hero-ctas .btn {
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .platforms {
+    gap: 10px;
+  }
+  .platforms li {
+    width: 66px;
+    height: 66px;
+  }
+  .platform-logo img {
+    width: 38px;
+    height: 38px;
   }
 }
