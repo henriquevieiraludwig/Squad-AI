@@ -38,7 +38,18 @@ const processes = [
   ['Vendas', 'Follow-up de propostas', 'Busca propostas sem resposta no Gmail e prepara o lembrete para o vendedor aprovar.'],
 ];
 
-const platforms = ['Microsoft 365', 'Outlook', 'Teams', 'Google Workspace', 'Gmail', 'Google Chat', 'WhatsApp Business', 'Telegram', 'Slack'];
+import logoMicrosoft from '../assets/logos/microsoft.webp';
+import logoWhatsapp from '../assets/logos/whatsapp.webp';
+import logoGoogle from '../assets/logos/google.webp';
+import logoTelegram from '../assets/logos/telegram.webp';
+
+// Logos das plataformas compatíveis (o nome fica só para leitores de tela).
+const platforms = [
+  { name: 'Microsoft 365', src: logoMicrosoft },
+  { name: 'WhatsApp', src: logoWhatsapp },
+  { name: 'Google Workspace', src: logoGoogle },
+  { name: 'Telegram', src: logoTelegram },
+];
 
 export default function Landing() {
   const { user } = useAuth();
@@ -159,7 +170,10 @@ export default function Landing() {
             </div>
             <ul className="platforms" aria-label="Plataformas compatíveis">
               {platforms.map((p) => (
-                <li key={p}>{p}</li>
+                <li key={p.name} className="platform-logo">
+                  <img src={p.src} alt="" />
+                  <span className="visually-hidden">{p.name}</span>
+                </li>
               ))}
             </ul>
           </div>

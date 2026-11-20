@@ -385,11 +385,19 @@
 }
 
 .platforms li {
-  padding: 10px 16px;
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 14px;
   background: var(--bg);
-  font-weight: 500;
+}
+
+.platform-logo img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
 }
 
 /* Processos */
