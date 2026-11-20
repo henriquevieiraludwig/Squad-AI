@@ -15,7 +15,7 @@ export default function AuthLayout({ children, aside }) {
           <Endorsement />
         </div>
       </main>
-      <aside className="auth-aside" aria-label="Sobre o Ofício">
+      <aside className="auth-aside" aria-label="Sobre o Squad AI">
         <div className="auth-art">
           <PortalArt label="Escultura de um portal de lâminas verdes, símbolo da marca" />
         </div>

@@ -148,4 +148,4 @@ if (existsSync(dist)) {
   app.get('*', (_req, res) => res.sendFile(join(dist, 'index.html')));
 }
 
-app.listen(PORT, () => console.log(`Ofício API ouvindo em http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Squad AI API ouvindo em http://localhost:${PORT}`));

@@ -241,7 +241,7 @@ export default function Landing() {
         <div className="wrap footer-inner">
           <Logo />
           <Endorsement />
-          <p>© {new Date().getFullYear()} Ofício. Agentes de IA para processos repetitivos.</p>
+          <p>© {new Date().getFullYear()} Squad AI. Agentes de IA para processos repetitivos.</p>
         </div>
       </footer>
     </div>

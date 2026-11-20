@@ -4,7 +4,7 @@ import { db } from './db.js';
 
 const scryptAsync = promisify(scrypt);
 const SESSION_DAYS = 30;
-export const COOKIE_NAME = 'oficio_session';
+export const COOKIE_NAME = 'squadai_session';
 
 export async function hashPassword(password) {
   const salt = randomBytes(16);

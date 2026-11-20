@@ -3,7 +3,7 @@
 import { ApiError } from './api.js';
 import { PROVIDERS, ACTIONS, ACTION_BY_ID, PROVIDER_BY_ID, connectionFor } from '../shared/catalog.js';
 
-const KEY = 'oficio-demo-v1';
+const KEY = 'squad-ai-demo-v1';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const AREAS = ['Atendimento', 'Vendas', 'Pessoas e RH', 'Operações', 'Financeiro', 'Jurídico', 'Outra'];
 
@@ -189,7 +189,7 @@ function listIntegrations(s, u) {
       actionCount: ACTIONS.filter((a) => a.provider === p.id || (p.via && a.provider === p.via && a.service === serviceFor(p.id))).length,
     };
     if (p.channel && c) {
-      out.webhookUrl = `https://app.oficio.exemplo/api/webhooks/${p.id}/${c.webhookKey}`;
+      out.webhookUrl = `https://app.squadai.exemplo/api/webhooks/${p.id}/${c.webhookKey}`;
       if (p.id === 'whatsapp') out.verifyToken = c.webhookSecret;
       out.routeAgentId = routes[p.id] || null;
     }

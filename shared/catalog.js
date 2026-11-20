@@ -51,7 +51,7 @@ export const PROVIDERS = [
     steps: [
       'No Telegram, abra uma conversa com @BotFather e envie /newbot.',
       'Escolha o nome e o usuário do bot. O BotFather responde com o token.',
-      'Cole o token aqui. O Ofício configura o recebimento de mensagens automaticamente.',
+      'Cole o token aqui. O Squad AI configura o recebimento de mensagens automaticamente.',
     ],
   },
   {

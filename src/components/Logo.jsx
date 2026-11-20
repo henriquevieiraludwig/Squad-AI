@@ -1,17 +1,19 @@
 import { Link } from 'react-router-dom';
 
-// Marca do Ofício (página de processo) aplicada à paleta da Matriz AI: quadrado verde-lima, traço escuro.
-export function OficioMark({ size = 30 }) {
+// Marca do Squad AI: três agentes conectados (o "squad"), em traço escuro sobre o quadrado verde-lima da Matriz AI.
+export function SquadMark({ size = 30 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
       <rect width="32" height="32" rx="7" fill="var(--lime)" />
-      <path d="M9 7h10l4 4v14H9z" fill="none" stroke="var(--forest)" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M12.5 15h7M12.5 19h5" stroke="var(--forest)" strokeWidth="2" strokeLinecap="round" />
+      <path d="M16 10.5 10 21h12z" fill="none" stroke="var(--forest)" strokeWidth="1.8" strokeLinejoin="round" />
+      <circle cx="16" cy="10" r="3.4" fill="var(--forest)" />
+      <circle cx="9.8" cy="21.4" r="3.4" fill="var(--forest)" />
+      <circle cx="22.2" cy="21.4" r="3.4" fill="var(--forest)" />
     </svg>
   );
 }
 
-// M geométrico da Matriz AI, usado na assinatura "da matriz.ai".
+// M geométrico da Matriz AI, usado na assinatura "uma solução matriz.ai".
 export function MatrizMark({ size = 18 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
@@ -33,9 +35,9 @@ export function Endorsement({ onDark = false }) {
 
 export default function Logo({ to = '/', onDark = false }) {
   return (
-    <Link to={to} className="logo" aria-label="Ofício, página inicial" style={{ color: onDark ? 'var(--on-dark)' : 'var(--ink)' }}>
-      <OficioMark />
-      <span>Ofício</span>
+    <Link to={to} className="logo" aria-label="Squad AI, página inicial" style={{ color: onDark ? 'var(--on-dark)' : 'var(--ink)' }}>
+      <SquadMark />
+      <span>Squad AI</span>
     </Link>
   );
 }

@@ -117,7 +117,7 @@ export default function Signup() {
           {submitting ? 'Criando conta…' : 'Criar conta'}
         </button>
         <p className="auth-legal">
-          Ao criar a conta, você concorda com os Termos de uso e a Política de privacidade do Ofício.
+          Ao criar a conta, você concorda com os Termos de uso e a Política de privacidade do Squad AI.
         </p>
       </form>
     </AuthLayout>

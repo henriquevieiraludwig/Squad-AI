@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const dbPath = process.env.DB_PATH || join(root, 'data', 'oficio.db');
+const dbPath = process.env.DB_PATH || join(root, 'data', 'squad-ai.db');
 mkdirSync(dirname(dbPath), { recursive: true });
 
 export const db = new DatabaseSync(dbPath);

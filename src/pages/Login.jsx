@@ -36,7 +36,7 @@ export default function Login() {
         </>
       }
     >
-      <h1>Entrar no Ofício</h1>
+      <h1>Entrar no Squad AI</h1>
       <p className="auth-sub">
         Ainda não tem conta? <Link to="/criar-conta">Criar conta da empresa</Link>
       </p>

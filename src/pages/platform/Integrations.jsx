@@ -309,7 +309,7 @@ function ChannelSetup({ p, agents, onRoute, notify }) {
           <p className="hint">No painel da Meta, em WhatsApp &gt; Configuração, cole os dois valores e assine o campo messages.</p>
         </>
       )}
-      {p.id === 'telegram' && <p className="hint">O Telegram já envia as mensagens do bot para o Ofício.</p>}
+      {p.id === 'telegram' && <p className="hint">O Telegram já envia as mensagens do bot para o Squad AI.</p>}
     </div>
   );
 }

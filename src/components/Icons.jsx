@@ -1,4 +1,4 @@
-// Ícones lineares (traço 1.8), desenhados para o Ofício.
+// Ícones lineares (traço 1.8), desenhados para o Squad AI.
 const Svg = ({ size = 20, children, ...rest }) => (
   <svg
     width={size}

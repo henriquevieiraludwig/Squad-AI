@@ -1,4 +1,4 @@
-# Ofício
+# Squad AI
 
 Agentes de IA para empresas que querem automatizar processos repetitivos. Uma solução **matriz.ai**.
 
@@ -28,7 +28,7 @@ Em produção, `ENCRYPTION_KEY` é obrigatória e `PUBLIC_URL` precisa ser HTTPS
 
 ## Demonstração sem servidor
 
-`npm run build:demo` gera `dist-demo/oficio-demo.html`, um arquivo único que roda no navegador com dados locais e respostas simuladas.
+`npm run build:demo` gera `dist-demo/squad-ai-demo.html`, um arquivo único que roda no navegador com dados locais e respostas simuladas.
 
 ## Integrações
 
@@ -42,7 +42,7 @@ Em produção, `ENCRYPTION_KEY` é obrigatória e `PUBLIC_URL` precisa ser HTTPS
 
 O catálogo fica em `shared/catalog.js`; a execução, em `server/connectors/`. Para adicionar uma ação: descreva-a no catálogo e implemente a função com o mesmo `id` no conector.
 
-### Cadastrar os apps da plataforma (uma vez, pelo operador do Ofício)
+### Cadastrar os apps da plataforma (uma vez, pelo operador do Squad AI)
 
 Use como endereço de retorno `PUBLIC_URL/api/oauth/callback/<provedor>`.
 
