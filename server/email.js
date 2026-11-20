@@ -30,7 +30,9 @@ function layout(partner, { title, intro, cta, url, outro }) {
 export async function sendEmail(partner, { to, subject, ...content }) {
   const b = mergeBrand(partner.brand);
   const { html, text } = layout(partner, content);
-  const fromAddress = b.senderEmail || process.env.EMAIL_FROM || 'nao-responda@squadai.local';
+  // Sem domínio verificado, o Resend aceita o remetente de teste onboarding@resend.dev
+  // (entrega só para o e-mail dono da conta do Resend).
+  const fromAddress = b.senderEmail || process.env.EMAIL_FROM || (process.env.RESEND_API_KEY ? 'onboarding@resend.dev' : 'nao-responda@squadai.local');
   const from = `${b.senderName || partner.name} <${fromAddress}>`;
 
   if (!process.env.RESEND_API_KEY) {

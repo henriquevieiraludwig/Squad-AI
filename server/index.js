@@ -86,7 +86,10 @@ export async function start() {
   registerJobHandlers();
   await startWorker();
   const app = createApp();
-  return app.listen(PORT, () => console.log(`Squad AI ouvindo em http://localhost:${PORT} (banco: ${db.kind})`));
+  return app.listen(PORT, () => {
+    console.log(`Squad AI ouvindo em http://localhost:${PORT} (banco: ${db.kind})`);
+    if (!process.env.RESEND_API_KEY) console.warn('[aviso] RESEND_API_KEY não definida: e-mails (redefinir senha, convites, confirmação) só aparecem neste log e não são entregues.');
+  });
 }
 
 // Hospedagens sem terminal (ex.: Render grátis): com BOOTSTRAP_ADMIN_EMAIL definido e nenhum

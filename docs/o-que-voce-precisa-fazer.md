@@ -39,7 +39,11 @@ Tudo o que depende de software está pronto ou listado no README. Esta lista é 
 - [x] **Supabase:** projeto criado. Siga `docs/supabase.md` para pegar a string de conexão e testar com `npm run db:check`. Para produção, considere o plano Pro (backups diários e sem pausa por inatividade).
 - [ ] **Render** (ou Railway/Fly): conecte o repositório e crie pelo Blueprint (`render.yaml`). Plano sugerido: web Starter. Cadastre a `DATABASE_URL` da Supabase e configure os domínios no painel do Render para o HTTPS funcionar.
 - [ ] **Anthropic (API do Claude):** conta da empresa, forma de pagamento, limites de gasto e alertas. Gere a `ANTHROPIC_API_KEY`. Leia a política de retenção de dados para citar nos contratos.
-- [ ] **Resend (e-mails):** conta e verificação do domínio de envio (SPF e DKIM). Gere a `RESEND_API_KEY` e defina `EMAIL_FROM`. Se um parceiro quiser e-mails com o domínio dele, ele precisa verificar o domínio também.
+- [ ] **Resend (e-mails):** sem isso, redefinir senha, convites e confirmação de e-mail não chegam.
+  1. Crie a conta em resend.com usando o mesmo e-mail que você usa para entrar no Squad AI.
+  2. Em API Keys, crie uma chave e cole no Render (Environment) como `RESEND_API_KEY`. Deixe `EMAIL_FROM` em branco por enquanto.
+  3. Pronto para testar: os e-mails saem de onboarding@resend.dev, mas o Resend só entrega para o e-mail dono da conta.
+  4. Para enviar para clientes: verifique o domínio no Resend (Domains, registros SPF e DKIM no DNS) e defina `EMAIL_FROM`, ex.: nao-responda@seudominio.com.br. Se um parceiro quiser e-mails com o domínio dele, ele precisa verificar o domínio também.
 - [ ] **Sentry (opcional, recomendado):** para receber alertas de erro. Gere o `SENTRY_DSN`.
 - [ ] **Monitor de disponibilidade** (UptimeRobot, Better Stack) apontando para `/api/health`.
 
