@@ -170,7 +170,7 @@ export default function Landing() {
             </div>
             <ul className="platforms" aria-label="Plataformas compatíveis">
               {platforms.map((p, i) => (
-                <li key={p.name} className="platform-logo" style={{ '--i': i }}>
+                <li key={p.name} className="platform-logo" style={{ '--i': i, '--row': i % 2 }}>
                   <img src={p.src} alt="" />
                   <span className="visually-hidden">{p.name}</span>
                 </li>

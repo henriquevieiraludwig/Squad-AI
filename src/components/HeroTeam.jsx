@@ -12,13 +12,13 @@ import person8 from '../assets/hero/person-8.webp';
 const ORIGINAL = 1254;
 const PEOPLE = [
   { src: person1, at: [625, 240, 245], role: 'Assistente de atendimento' },
-  { src: person2, at: [945, 370, 178], role: 'Analista financeiro' },
-  { src: person3, at: [1065, 680, 178], role: 'Vendas' },
-  { src: person4, at: [925, 965, 178], role: 'Suporte técnico' },
-  { src: person5, at: [625, 1075, 178], role: 'Analista de dados' },
-  { src: person6, at: [330, 965, 178], role: 'Analista de marketing' },
-  { src: person7, at: [185, 670, 178], role: 'Recursos humanos' },
-  { src: person8, at: [310, 385, 178], role: 'Agendamentos' },
+  { src: person2, at: [945, 370, 132], role: 'Analista financeiro' },
+  { src: person3, at: [1065, 680, 132], role: 'Vendas' },
+  { src: person4, at: [925, 965, 132], role: 'Suporte técnico' },
+  { src: person5, at: [625, 1075, 134], role: 'Analista de dados' },
+  { src: person6, at: [330, 965, 132], role: 'Analista de marketing' },
+  { src: person7, at: [185, 670, 132], role: 'Recursos humanos' },
+  { src: person8, at: [310, 385, 132], role: 'Agendamentos' },
 ];
 
 // A arte base fica embaixo. Cada pessoa é recortada por cima, no mesmo lugar, para poder animar só ela.
