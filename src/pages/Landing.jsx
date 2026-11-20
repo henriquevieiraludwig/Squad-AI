@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import Logo, { Endorsement } from '../components/Logo.jsx';
 import HeroDemo from '../components/HeroDemo.jsx';
 import HeroTeam from '../components/HeroTeam.jsx';
-import { IconShield, IconHistory, IconLock } from '../components/Icons.jsx';
+import { IconShield, IconHistory, IconLock, IconCheck } from '../components/Icons.jsx';
 import { useAuth, homeFor } from '../auth.jsx';
 import { useBrand } from '../brand.jsx';
 import './landing.css';
@@ -43,6 +43,29 @@ import logoWhatsapp from '../assets/logos/whatsapp.webp';
 import logoGoogle from '../assets/logos/google.webp';
 import logoTelegram from '../assets/logos/telegram.webp';
 
+// Planos. Os preços ficam como "R$ X" até serem definidos: basta trocar o campo price.
+const plans = [
+  {
+    name: 'Starter',
+    price: 'R$ X',
+    text: 'Para começar com um processo e ver o primeiro agente trabalhando.',
+    features: ['1 agente', 'Até 2 integrações', 'Base de conhecimento da empresa', 'Aprovação humana por ação', 'Suporte por e-mail'],
+  },
+  {
+    name: 'Medium',
+    price: 'R$ X',
+    text: 'Para equipes que querem automatizar vários processos do dia a dia.',
+    features: ['Até 5 agentes', 'Todas as integrações', 'Processos e regras por agente', 'Caixa de conversas com atendimento humano', 'Equipe com papéis e aprovadores'],
+    featured: true,
+  },
+  {
+    name: 'Pro',
+    price: 'R$ X',
+    text: 'Para empresas com alto volume e necessidade de controle total.',
+    features: ['Agentes ilimitados', 'Todas as integrações', 'Maior volume de mensagens', 'Histórico completo e auditoria', 'Suporte prioritário'],
+  },
+];
+
 // Logos das plataformas compatíveis (o nome fica só para leitores de tela).
 const platforms = [
   { name: 'Microsoft 365', src: logoMicrosoft },
@@ -72,6 +95,7 @@ export default function Landing() {
             <a href="#integracoes">Integrações</a>
             <a href="#processos">Processos</a>
             <a href="#seguranca">Segurança</a>
+            <a href="#planos">Planos</a>
           </nav>
           <div className="site-actions">
             {user ? (
@@ -250,6 +274,41 @@ export default function Landing() {
                 </div>
               </li>
             </ul>
+          </div>
+        </section>
+
+        <section id="planos" className="section" aria-labelledby="planos-title">
+          <div className="wrap">
+            <div className="section-head section-head-center">
+              <h2 id="planos-title">
+                Planos para cada <span className="accent">momento da empresa.</span>
+              </h2>
+              <p>Comece pequeno e cresça conforme os agentes assumem mais processos.</p>
+            </div>
+            <div className="plans">
+              {plans.map((plan) => (
+                <article key={plan.name} className={`plan ${plan.featured ? 'plan-featured' : ''}`}>
+                  {plan.featured && <span className="plan-badge">Mais escolhido</span>}
+                  <h3>{plan.name}</h3>
+                  <p className="plan-price">
+                    <strong>{plan.price}</strong>
+                    <span>/mês</span>
+                  </p>
+                  <p className="plan-text">{plan.text}</p>
+                  <Link to={primaryTo} className={`btn ${plan.featured ? 'btn-primary' : 'btn-secondary'} plan-cta`}>
+                    {user ? 'Abrir plataforma' : 'Começar agora'}
+                  </Link>
+                  <ul className="plan-features">
+                    {plan.features.map((f) => (
+                      <li key={f}>
+                        <IconCheck aria-hidden="true" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
