@@ -29,14 +29,15 @@ Tudo o que depende de software está pronto ou listado no README. Esta lista é 
   - [ ] Nomear o encarregado (DPO) e publicar o contato.
   - [ ] Registro das operações de tratamento: o que a plataforma guarda (veja o anexo).
   - [ ] Acordo de tratamento de dados (DPA) com cada parceiro.
-  - [ ] Lista de subprocessadores: Anthropic (modelo de IA, EUA), Render (hospedagem, EUA), Resend (e-mail, EUA), Sentry se usar, e as plataformas que cada cliente conecta (Microsoft, Google, Meta, Telegram, Slack).
+  - [ ] Lista de subprocessadores: Anthropic (modelo de IA, EUA), Supabase (banco de dados, na região escolhida no projeto), Render (hospedagem, EUA), Resend (e-mail, EUA), Sentry se usar, e as plataformas que cada cliente conecta (Microsoft, Google, Meta, Telegram, Slack).
   - [ ] Transferência internacional: os dados passam por servidores nos EUA. Use as cláusulas-padrão da ANPD (Resolução CD/ANPD nº 19/2024) nos contratos.
   - [ ] Plano de resposta a incidentes (quem avisa quem, em quanto tempo).
 
 ## 3. Contas e infraestrutura
 
 - [ ] **Domínio** da plataforma (ex.: `squadai.com.br`) e, se quiser subdomínios automáticos para parceiros, um registro DNS curinga `*.squadai.com.br`.
-- [ ] **Render** (ou Railway/Fly): conecte o repositório e crie pelo Blueprint (`render.yaml`). Planos sugeridos: web Starter e Postgres com backup diário. Configure os domínios no painel do Render para o HTTPS funcionar.
+- [x] **Supabase:** projeto criado. Siga `docs/supabase.md` para pegar a string de conexão e testar com `npm run db:check`. Para produção, considere o plano Pro (backups diários e sem pausa por inatividade).
+- [ ] **Render** (ou Railway/Fly): conecte o repositório e crie pelo Blueprint (`render.yaml`). Plano sugerido: web Starter. Cadastre a `DATABASE_URL` da Supabase e configure os domínios no painel do Render para o HTTPS funcionar.
 - [ ] **Anthropic (API do Claude):** conta da empresa, forma de pagamento, limites de gasto e alertas. Gere a `ANTHROPIC_API_KEY`. Leia a política de retenção de dados para citar nos contratos.
 - [ ] **Resend (e-mails):** conta e verificação do domínio de envio (SPF e DKIM). Gere a `RESEND_API_KEY` e defina `EMAIL_FROM`. Se um parceiro quiser e-mails com o domínio dele, ele precisa verificar o domínio também.
 - [ ] **Sentry (opcional, recomendado):** para receber alertas de erro. Gere o `SENTRY_DSN`.

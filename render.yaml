@@ -1,4 +1,4 @@
-# Blueprint do Render: cria o servidor web e o banco PostgreSQL.
+# Blueprint do Render: cria o servidor web. O banco é o PostgreSQL da Supabase.
 # No Render: New > Blueprint > escolha este repositório. Depois preencha as variáveis marcadas com sync: false.
 services:
   - type: web
@@ -14,9 +14,7 @@ services:
       - key: NODE_VERSION
         value: 22
       - key: DATABASE_URL
-        fromDatabase:
-          name: squad-ai-db
-          property: connectionString
+        sync: false # Supabase: Connect > Session pooler (porta 5432), com a senha do banco
       - key: ENCRYPTION_KEY
         generateValue: true # 32 bytes aleatórios em base64. Nunca troque depois de criado.
       - key: PUBLIC_URL
@@ -46,8 +44,3 @@ services:
       - key: SENTRY_DSN
         sync: false
 
-databases:
-  - name: squad-ai-db
-    plan: basic-256mb
-    region: oregon
-    postgresMajorVersion: '16'

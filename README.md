@@ -47,9 +47,19 @@ npm test
 
 Rodam os fluxos completos da API com PGlite em memória, um Claude falso e um Telegram falso: cadastro, senha, convites e papéis, isolamento entre empresas e entre parceiros, contexto e processos no prompt, aprovações, atendimento humano, limites do plano, white label e LGPD. Para rodar contra um Postgres real, defina `DATABASE_URL`. O GitHub Actions roda os dois (`.github/workflows/ci.yml`).
 
+## Banco de dados (Supabase)
+
+Em produção o banco é o PostgreSQL da Supabase. Veja `docs/supabase.md`. Em resumo:
+
+1. No projeto da Supabase: **Connect > Session pooler** e copie a string (porta 5432). Troque `[YOUR-PASSWORD]` pela senha do banco.
+2. Teste no seu computador: `DATABASE_URL="a-string" npm run db:check`. O comando conecta, cria as tabelas e confere a proteção.
+3. Cadastre a mesma string como `DATABASE_URL` no Render.
+
+As tabelas ficam com RLS ligado e sem políticas: nada é acessível pela API pública da Supabase, só pelo servidor.
+
 ## Produção (Render)
 
-O arquivo `render.yaml` cria o servidor e o banco PostgreSQL: no Render, **New > Blueprint** e escolha este repositório. Preencha as variáveis marcadas como `sync: false`. Depois do primeiro deploy, abra o Shell do serviço e rode `npm run create-admin -- seu@email`.
+O arquivo `render.yaml` cria o servidor: no Render, **New > Blueprint** e escolha este repositório. Preencha as variáveis marcadas como `sync: false` (inclusive `DATABASE_URL`, da Supabase). Depois do primeiro deploy, abra o Shell do serviço e rode `npm run create-admin -- seu@email`.
 
 Variáveis principais (todas em `.env.example`): `DATABASE_URL`, `ENCRYPTION_KEY` (nunca troque depois de criada), `PUBLIC_URL`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY` e `EMAIL_FROM`, as credenciais dos apps Microsoft, Google e Slack e, opcionalmente, `SENTRY_DSN`.
 

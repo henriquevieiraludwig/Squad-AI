@@ -220,4 +220,27 @@ export const MIGRATIONS = [
   );
   CREATE INDEX idx_jobs_due ON jobs (status, run_at);
   `,
+  `
+  -- Supabase (e outros) expõem o schema public por uma API. Com RLS ligado e sem políticas,
+  -- nada fica acessível por esse caminho; o servidor, dono das tabelas, continua lendo normalmente.
+  ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE partners ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE partner_domains ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE tokens ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE agents ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE knowledge_docs ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE processes ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE integrations ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE oauth_states ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE agent_tools ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE channel_routes ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE action_runs ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE usage_events ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
+  `,
 ];

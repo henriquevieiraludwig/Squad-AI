@@ -10,10 +10,37 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 let driver = null;
 
+// Supabase, Neon, Render e afins exigem SSL. O parâmetro sslmode da URL é tratado aqui,
+// porque o driver pg passou a interpretá-lo como verificação completa do certificado.
+export function connectionOptions(url) {
+  const u = new URL(url);
+  const sslmode = u.searchParams.get('sslmode');
+  u.searchParams.delete('sslmode');
+  const managed = /\.(supabase\.co|supabase\.com|neon\.tech|render\.com)$/.test(u.hostname);
+  const wantsSsl = process.env.DATABASE_SSL === 'true' || (process.env.DATABASE_SSL !== 'false' && (managed || (sslmode && sslmode !== 'disable')));
+  return {
+    connectionString: u.toString(),
+    ssl: wantsSsl ? { rejectUnauthorized: false } : undefined,
+    // O pooler da Supabase (porta 6543) não guarda estado de sessão; avisamos para usar a 5432.
+    transactionPooler: /pooler\.supabase\.com$/.test(u.hostname) && u.port === '6543',
+  };
+}
+
 async function pgDriver(url) {
   const { default: pg } = await import('pg');
-  const ssl = /sslmode=require|ssl=true/.test(url) || process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined;
-  const pool = new pg.Pool({ connectionString: url, ssl, max: Number(process.env.DATABASE_POOL || 10) });
+  const opts = connectionOptions(url);
+  if (opts.transactionPooler) {
+    console.warn('[banco] Você está usando o pooler de transações da Supabase (porta 6543). Prefira o "Session pooler" (porta 5432) para um servidor sempre ligado.');
+  }
+  const pool = new pg.Pool({
+    connectionString: opts.connectionString,
+    ssl: opts.ssl,
+    max: Number(process.env.DATABASE_POOL || 10),
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 15_000,
+  });
+  // Poolers gerenciados encerram conexões ociosas; sem este tratador o processo cairia.
+  pool.on('error', (err) => console.error('[banco] conexão ociosa encerrada:', err.message));
   const wrap = (client) => ({
     async query(sql, params = []) {
       const r = await client.query(sql, params);
