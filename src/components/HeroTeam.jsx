@@ -1,4 +1,5 @@
 import heroTeam from '../assets/hero-team.webp';
+import './hero-team.css';
 import person1 from '../assets/hero/person-1.webp';
 import person2 from '../assets/hero/person-2.webp';
 import person3 from '../assets/hero/person-3.webp';

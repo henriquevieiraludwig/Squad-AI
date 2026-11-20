@@ -1,5 +1,5 @@
 import Logo, { Endorsement } from './Logo.jsx';
-import PortalArt from './PortalArt.jsx';
+import HeroTeam from './HeroTeam.jsx';
 import { useBrand } from '../brand.jsx';
 import '../pages/auth.css';
 
@@ -19,7 +19,7 @@ export default function AuthLayout({ children, aside }) {
       </main>
       <aside className="auth-aside" aria-label={`Sobre o ${brand.name}`}>
         <div className="auth-art">
-          <PortalArt label="Escultura de um portal de lâminas verdes, símbolo da marca" />
+          <HeroTeam />
         </div>
         <div className="auth-aside-body">{aside}</div>
       </aside>
