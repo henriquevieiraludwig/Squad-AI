@@ -195,6 +195,19 @@ export function registerPartnerRoutes(app) {
     res.json({ ok: true });
   }));
 
+  // Administrador da plataforma: cria uma empresa vinculada à própria conta, para usar o painel do cliente.
+  app.post('/api/platform/my-company', wrap(async (req, res) => {
+    if (!req.user?.isPlatformAdmin) return res.status(403).json({ error: 'Esta ação é da equipe da plataforma.' });
+    if (req.user.orgId) return res.status(409).json({ error: 'Sua conta já tem uma empresa vinculada.' });
+    const name = clean(req.body?.name, 120);
+    if (!name) return res.status(400).json({ error: 'Informe o nome da empresa.', fields: { name: 'Obrigatório.' } });
+    await db.tx(async (t) => {
+      const org = await t.get('INSERT INTO organizations (partner_id, name) VALUES ($1, $2) RETURNING id', [req.user.partnerId, name]);
+      await t.run(`UPDATE users SET org_id = $2, role = 'owner' WHERE id = $1`, [req.user.id, org.id]);
+    });
+    res.status(201).json({ ok: true });
+  }));
+
   // ---------- Clientes do parceiro ----------
 
   app.get('/api/partner/:pid/clients', wrap(async (req, res) => {

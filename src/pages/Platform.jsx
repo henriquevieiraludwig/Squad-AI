@@ -176,6 +176,12 @@ export default function Platform() {
             ))}
           </ul>
         </nav>
+        {user.isPlatformAdmin && (
+          <NavLink to="/parceiro" className="side-link side-foot">
+            <IconAgent />
+            <span>Console da plataforma</span>
+          </NavLink>
+        )}
         <div className="sidebar-user">
           <span className="avatar" aria-hidden="true">
             {initials}

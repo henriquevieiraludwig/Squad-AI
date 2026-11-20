@@ -18,6 +18,21 @@ after(async () => {
 });
 
 describe('plataforma', () => {
+  it('administrador da plataforma cria uma empresa para usar o painel do cliente', async () => {
+    const { createToken } = await import('../server/routes/auth.js');
+    const raw = await createToken({ kind: 'convite', partnerId: P.platform.id, email: 'chefe@matriz.ai', role: 'partner_admin', ttlMs: 60_000 });
+    const chefe = P.client();
+    assert.equal((await chefe.post(`/api/invites/${raw}/accept`, { name: 'Chefe', password: 'senhaforte1' })).status, 201);
+    assert.equal((await chefe.get('/api/agents')).status, 403, 'sem empresa, o painel do cliente fica fechado');
+    assert.equal((await chefe.post('/api/platform/my-company', { name: 'Matriz AI' })).status, 201);
+    assert.equal((await chefe.get('/api/agents')).status, 200);
+    const me = (await chefe.get('/api/auth/me')).body.user;
+    assert.equal(me.isPlatformAdmin, true);
+    assert.equal(me.orgName, 'Matriz AI');
+    assert.equal((await chefe.post('/api/platform/my-company', { name: 'Outra' })).status, 409);
+    assert.equal((await chefe.post('/api/agents', { name: 'Agente Teste', area: 'Atendimento' })).status, 201);
+  });
+
   const owner = () => P.client();
   let ana; // proprietária da empresa no parceiro padrão
   let anaOrgAgent;

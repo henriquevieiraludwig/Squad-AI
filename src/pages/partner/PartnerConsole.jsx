@@ -1,6 +1,6 @@
 // Console do parceiro (white label) e, para a equipe da plataforma, gestão de todos os parceiros.
 import { useCallback, useEffect, useState } from 'react';
-import { NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Logo from '../../components/Logo.jsx';
 import { IconBuilding, IconBrush, IconGlobe, IconKey, IconTeam, IconMenu, IconAgent } from '../../components/Icons.jsx';
 import { useAuth } from '../../auth.jsx';
@@ -101,6 +101,7 @@ export default function PartnerConsole() {
       <div className="scrim" onClick={() => setMenuOpen(false)} aria-hidden="true" />
 
       <main className="content">
+        {user.isPlatformAdmin && <PlatformCompanyBanner />}
         <Routes>
           <Route path="parceiros" element={user.isPlatformAdmin ? <Partners notify={notify} /> : null} />
           <Route path="p/:pid/*" element={<ManagedPartner notify={notify} />} />
@@ -112,6 +113,53 @@ export default function PartnerConsole() {
         {toast && <div className={`toast toast-${toast.kind}`}>{toast.text}</div>}
       </div>
     </div>
+  );
+}
+
+function PlatformCompanyBanner() {
+  const { user, refresh } = useAuth();
+  const navigate = useNavigate();
+  const [name, setName] = useState('Matriz AI');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  if (user.orgId) {
+    return (
+      <div className="alert alert-info platform-company">
+        <span>
+          Sua conta usa a empresa <strong>{user.orgName}</strong> para testar o painel do cliente.
+        </span>
+        <Link to="/app" className="btn btn-secondary btn-sm">
+          Abrir painel da empresa
+        </Link>
+      </div>
+    );
+  }
+
+  async function create(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await api('/platform/my-company', { method: 'POST', body: { name } });
+      await refresh();
+      navigate('/app');
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="alert alert-info platform-company" onSubmit={create} noValidate>
+      <span>Para testar agentes e o painel do cliente, crie uma empresa vinculada à sua conta.</span>
+      <input className="input input-sm" value={name} onChange={(e) => setName(e.target.value)} aria-label="Nome da empresa" />
+      <button className="btn btn-primary btn-sm" disabled={busy || !name.trim()}>
+        {busy && <span className="spinner" aria-hidden="true" />}
+        Criar empresa
+      </button>
+      {error && <span className="field-error">{error}</span>}
+    </form>
   );
 }
 
