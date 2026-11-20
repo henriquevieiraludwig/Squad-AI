@@ -446,19 +446,25 @@
 /* Plataformas */
 
 .platforms {
+  --s: 72px;
+  --g: 8px;
+  --step: calc(var(--s) + var(--g));
+  position: relative;
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
+  width: calc(var(--s) + 3 * var(--step));
+  height: calc(var(--s) + 3 * var(--step));
 }
 
 .platforms li {
+  position: absolute;
+  left: calc(var(--i) * var(--step));
+  top: calc(var(--i) * var(--step));
+  width: var(--s);
+  height: var(--s);
   display: grid;
   place-items: center;
-  width: 84px;
-  height: 84px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--bg);
@@ -637,11 +643,8 @@
 
 @media (max-width: 420px) {
   .platforms {
-    gap: 10px;
-  }
-  .platforms li {
-    width: 66px;
-    height: 66px;
+    --s: 60px;
+    --g: 6px;
   }
   .platform-logo img {
     width: 38px;
