@@ -116,35 +116,57 @@
   display: block;
 }
 
-/* Cada pessoa: ao passar o mouse, cresce e balança de leve (sem mudar o desenho) */
+/* Cada pessoa: ao passar o mouse cresce, balança a cabeça e mostra o papel dela */
 .hero-person {
   position: absolute;
-  border-radius: 50%;
-  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.35s ease;
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), filter 0.35s ease;
 }
 
 .hero-person img {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: 50%;
 }
 
-.hero-person:hover {
+.hero-person:hover,
+.hero-person:focus-within {
   z-index: 2;
-  transform: scale(1.14);
-  box-shadow: 0 0 0 3px var(--lime), 0 14px 30px -12px rgba(16, 39, 30, 0.5);
-  animation: person-lean 1.8s ease-in-out infinite;
+  transform: scale(1.18);
+  filter: drop-shadow(0 12px 18px rgba(16, 39, 30, 0.35));
+  animation: person-nod 1.6s ease-in-out infinite;
 }
 
-@keyframes person-lean {
+@keyframes person-nod {
   0%,
   100% {
-    transform: scale(1.14) rotate(-2.5deg) translateY(0);
+    transform: scale(1.18) rotate(-5deg) translateY(0);
   }
   50% {
-    transform: scale(1.14) rotate(2.5deg) translateY(-3px);
+    transform: scale(1.18) rotate(5deg) translateY(-6px);
   }
+}
+
+.hero-role {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translate(-50%, 4px) scale(0.96);
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--forest);
+  color: var(--on-dark);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.hero-person:hover .hero-role,
+.hero-person:focus-within .hero-role {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -154,6 +176,7 @@
     animation: none !important;
   }
 }
+
 
 /* ---------- Seções ---------- */
 
