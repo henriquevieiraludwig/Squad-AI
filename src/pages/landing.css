@@ -103,9 +103,56 @@
 }
 
 .hero-team {
+  position: relative;
   width: 100%;
-  height: auto;
+  aspect-ratio: 1 / 1;
+}
+
+.hero-team-base {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   display: block;
+}
+
+/* Cada pessoa: ao passar o mouse, cresce e balança de leve (sem mudar o desenho) */
+.hero-person {
+  position: absolute;
+  border-radius: 50%;
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.35s ease;
+}
+
+.hero-person img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.hero-person:hover {
+  z-index: 2;
+  transform: scale(1.14);
+  box-shadow: 0 0 0 3px var(--lime), 0 14px 30px -12px rgba(16, 39, 30, 0.5);
+  animation: person-lean 1.8s ease-in-out infinite;
+}
+
+@keyframes person-lean {
+  0%,
+  100% {
+    transform: scale(1.14) rotate(-2.5deg) translateY(0);
+  }
+  50% {
+    transform: scale(1.14) rotate(2.5deg) translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-person,
+  .hero-person:hover {
+    transition: none;
+    animation: none !important;
+  }
 }
 
 /* ---------- Seções ---------- */
