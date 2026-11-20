@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PROVIDERS, PROVIDER_BY_ID, connectionFor, defaultMode } from '../../../shared/catalog.js';
 import { IconChat } from '../../components/Icons.jsx';
+import { can } from '../../auth.jsx';
 import { PageHead, SearchInput, FilterChips, Monogram, ErrorState, LoadingRows, AGENT_STATUS, formatDate } from './common.jsx';
 
 const MODE_OPTIONS = [
@@ -11,7 +12,8 @@ const MODE_OPTIONS = [
   { value: 'auto', label: 'Automática' },
 ];
 
-export default function AgentDetail({ notify, refreshSummary }) {
+export default function AgentDetail({ user, notify, refreshSummary }) {
+  const editable = can(user, 'configurar');
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [catalog, setCatalog] = useState(null);
@@ -70,7 +72,7 @@ export default function AgentDetail({ notify, refreshSummary }) {
       </>
     );
 
-  const { agent, tools } = data;
+  const { agent, tools, processes = [] } = data;
   const st = AGENT_STATUS[agent.status] || { label: agent.status, cls: 'pill-neutral' };
   const q = query.trim().toLowerCase();
   const enabledCount = Object.keys(tools).length;
@@ -105,11 +107,36 @@ export default function AgentDetail({ notify, refreshSummary }) {
         <span className="tabular">{enabledCount} ações liberadas</span>
       </p>
 
+      <section className="panel" aria-labelledby="know-title">
+        <div className="panel-head">
+          <div>
+            <h2 id="know-title">O que este agente sabe</h2>
+            <p className="panel-sub">Todo o Contexto da empresa, mais os processos abaixo.</p>
+          </div>
+          <Link to="/app/processos" className="link">
+            Gerenciar processos
+          </Link>
+        </div>
+        {processes.length ? (
+          <ul className="tags">
+            {processes.map((p) => (
+              <li key={p.id}>{p.title}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">Nenhum processo ainda. Mapeie o primeiro em Processos para o agente seguir as etapas da empresa.</p>
+        )}
+      </section>
+
       <section className="panel" aria-labelledby="tools-title">
         <div className="panel-head">
           <div>
             <h2 id="tools-title">Ferramentas</h2>
-            <p className="panel-sub">Consultas costumam rodar sozinhas. Envios em nome da empresa devem pedir aprovação.</p>
+            <p className="panel-sub">
+              {editable
+                ? 'Consultas costumam rodar sozinhas. Envios em nome da empresa devem pedir aprovação.'
+                : 'Só administradores podem mudar as ferramentas deste agente.'}
+            </p>
           </div>
         </div>
         <div className="toolbar toolbar-in-panel">
@@ -174,14 +201,14 @@ export default function AgentDetail({ notify, refreshSummary }) {
                             name={`mode-${a.id}`}
                             value={o.value}
                             checked={mode === o.value}
-                            disabled={!isConnected || saving === a.id}
+                            disabled={!editable || !isConnected || saving === a.id}
                             onChange={() => setMode(a, o.value)}
                           />
                           {o.label}
                         </label>
                       ))}
                     </div>
-                    {mode === 'off' && isConnected && (
+                    {mode === 'off' && isConnected && editable && (
                       <button type="button" className="tool-suggest" onClick={() => setMode(a, defaultMode(a))} disabled={saving === a.id}>
                         Ligar com o modo recomendado
                       </button>
@@ -220,7 +247,7 @@ export default function AgentDetail({ notify, refreshSummary }) {
                           : 'Conectado, sem agente respondendo.'}
                   </span>
                 </div>
-                {!p.connected ? (
+                {!editable ? null : !p.connected ? (
                   <Link to="/app/integracoes" className="btn btn-secondary btn-sm">
                     Conectar
                   </Link>

@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { PageHead, SearchInput, FilterChips } from './common.jsx';
+import { can } from '../../auth.jsx';
 import AgentList from './AgentList.jsx';
 
-export default function Agents({ agents, areas, loadError, reloadAgents, openCreate }) {
+export default function Agents({ user, agents, areas, loadError, reloadAgents, openCreate }) {
   const [query, setQuery] = useState('');
   const [area, setArea] = useState('todas');
 
@@ -19,9 +20,11 @@ export default function Agents({ agents, areas, loadError, reloadAgents, openCre
   return (
     <>
       <PageHead title="Agentes" lede="Cada agente assume os processos de uma área e só usa as ferramentas que você liberar.">
-        <button className="btn btn-primary" onClick={openCreate}>
-          Criar agente
-        </button>
+        {can(user, 'configurar') && (
+          <button className="btn btn-primary" onClick={openCreate}>
+            Criar agente
+          </button>
+        )}
       </PageHead>
 
       {agents?.length > 0 && (
@@ -44,7 +47,7 @@ export default function Agents({ agents, areas, loadError, reloadAgents, openCre
           agents={filtered}
           loadError={loadError}
           reload={reloadAgents}
-          openCreate={openCreate}
+          openCreate={can(user, 'configurar') ? openCreate : null}
           emptyFiltered={agents?.length > 0}
         />
       </section>

@@ -282,6 +282,18 @@ describe('plataforma', () => {
     await acmeAdmin.put(`/api/partner/me/clients/${clients.body.clients[0].id}`, { status: 'suspensa' });
     assert.equal((await joao.get('/api/agents')).status, 403);
 
+    // Exportação (só o proprietário) e exclusão definitiva pelo parceiro.
+    await acmeAdmin.put(`/api/partner/me/clients/${clients.body.clients[0].id}`, { status: 'ativa' });
+    const exp = await joao.get('/api/org/export');
+    assert.equal(exp.status, 200);
+    assert.equal(exp.body.organization.name, 'Padaria Sol');
+    assert.equal(exp.body.agents.length, 1);
+    const orgId = clients.body.clients[0].id;
+    assert.equal((await acmeAdmin.del(`/api/partner/me/clients/${orgId}`)).status, 400, 'exige confirmação');
+    assert.equal((await acmeAdmin.del(`/api/partner/me/clients/${orgId}`, { confirm: 'Padaria Sol' })).status, 200);
+    assert.equal((await joao.get('/api/auth/me')).body.user, null, 'usuários do cliente excluídos');
+    assert.equal((await acmeAdmin.get('/api/partner/me/clients')).body.clients.length, 0);
+
     // App OAuth próprio do parceiro: segredo nunca volta na resposta.
     assert.equal((await acmeAdmin.put('/api/partner/me/oauth/google', { clientId: 'acme-id', clientSecret: 'acme-secret' })).status, 200);
     const view = await acmeAdmin.get('/api/partner/me');

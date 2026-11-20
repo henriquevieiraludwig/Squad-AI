@@ -4,8 +4,10 @@ import { api, DEMO } from '../../api.js';
 import { PROVIDER_BY_ID } from '../../../shared/catalog.js';
 import { IconCopy, IconAlert, IconCheck } from '../../components/Icons.jsx';
 import { PageHead, SearchInput, FilterChips, Monogram, ErrorState, LoadingRows, formatDate } from './common.jsx';
+import { can } from '../../auth.jsx';
 
-export default function Integrations({ notify, refreshSummary }) {
+export default function Integrations({ user, notify, refreshSummary }) {
+  const editable = can(user, 'configurar');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -169,6 +171,7 @@ export default function Integrations({ notify, refreshSummary }) {
               onDisconnect={() => disconnect(p)}
               onRoute={(agentId) => setRoute(p, agentId)}
               notify={notify}
+              editable={editable}
             />
           ))}
         </ul>
@@ -191,7 +194,7 @@ export default function Integrations({ notify, refreshSummary }) {
   );
 }
 
-function IntegrationCard({ p, parent, agents, busy, confirming, onConnect, onAskDisconnect, onCancelDisconnect, onDisconnect, onRoute, notify }) {
+function IntegrationCard({ p, parent, agents, busy, confirming, onConnect, onAskDisconnect, onCancelDisconnect, onDisconnect, onRoute, notify, editable }) {
   let status;
   if (p.connected) status = <span className="pill pill-ok">Conectado</span>;
   else if (!p.platformReady) status = <span className="pill pill-neutral">Aguardando configuração</span>;
@@ -224,12 +227,11 @@ function IntegrationCard({ p, parent, agents, busy, confirming, onConnect, onAsk
       )}
 
       {!p.platformReady && !p.connected && (
-        <p className="integration-note">
-          O administrador da plataforma precisa cadastrar o app {parent ? `do ${parent.name}` : `do ${p.name}`} ({p.missingEnv.join(', ')}).
-        </p>
+        <p className="integration-note">Esta integração ainda não foi liberada na plataforma. Fale com o suporte.</p>
       )}
+      {p.note && <p className="integration-note integration-note-soft">{p.note}</p>}
 
-      {p.channel && p.connected && <ChannelSetup p={p} agents={agents} onRoute={onRoute} notify={notify} />}
+      {p.channel && p.connected && editable && <ChannelSetup p={p} agents={agents} onRoute={onRoute} notify={notify} />}
 
       <div className="integration-foot">
         <span className="muted tabular">
@@ -237,7 +239,7 @@ function IntegrationCard({ p, parent, agents, busy, confirming, onConnect, onAsk
         </span>
         {p.via ? (
           <span className="muted">Usa a conexão do {parent.name}</span>
-        ) : p.connected ? (
+        ) : !editable ? null : p.connected ? (
           confirming ? (
             <span className="confirm-row">
               <button className="btn btn-ghost btn-sm" onClick={onCancelDisconnect}>
@@ -309,7 +311,7 @@ function ChannelSetup({ p, agents, onRoute, notify }) {
           <p className="hint">No painel da Meta, em WhatsApp &gt; Configuração, cole os dois valores e assine o campo messages.</p>
         </>
       )}
-      {p.id === 'telegram' && <p className="hint">O Telegram já envia as mensagens do bot para o Squad AI.</p>}
+      {p.id === 'telegram' && <p className="hint">O Telegram já envia as mensagens do bot para a plataforma.</p>}
     </div>
   );
 }

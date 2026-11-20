@@ -41,24 +41,39 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, refresh }}>{children}</AuthContext.Provider>
   );
 }
 
 export const useAuth = () => useContext(AuthContext);
+
+// Página inicial de cada tipo de usuário: equipe do parceiro vai para o console, empresas para o painel.
+export const homeFor = (user) => (user?.orgId ? '/app' : user?.isPartnerAdmin ? '/parceiro' : '/');
+
+export const can = (user, perm) => Boolean(user?.permissions?.includes(perm));
 
 export function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
   if (loading) return <FullPageLoading />;
   if (!user) return <Navigate to="/entrar" replace state={{ from: location.pathname }} />;
+  if (!user.orgId) return <Navigate to={homeFor(user)} replace />;
+  return children;
+}
+
+export function RequirePartner({ children }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return <FullPageLoading />;
+  if (!user) return <Navigate to="/entrar" replace state={{ from: location.pathname }} />;
+  if (!user.isPartnerAdmin) return <Navigate to={homeFor(user)} replace />;
   return children;
 }
 
 export function GuestOnly({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <FullPageLoading />;
-  if (user) return <Navigate to="/app" replace />;
+  if (user) return <Navigate to={homeFor(user)} replace />;
   return children;
 }
 

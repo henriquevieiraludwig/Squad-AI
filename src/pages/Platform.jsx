@@ -12,8 +12,10 @@ import {
   IconChat,
   IconTeam,
   IconMenu,
+  IconInbox,
 } from '../components/Icons.jsx';
 import { useAuth } from '../auth.jsx';
+import VerifyBanner from './platform/VerifyBanner.jsx';
 import { api } from '../api.js';
 import Home from './platform/Home.jsx';
 import Agents from './platform/Agents.jsx';
@@ -21,7 +23,10 @@ import AgentDetail from './platform/AgentDetail.jsx';
 import Integrations from './platform/Integrations.jsx';
 import Approvals from './platform/Approvals.jsx';
 import TestChat from './platform/TestChat.jsx';
-import Placeholder from './platform/Placeholder.jsx';
+import Knowledge from './platform/Knowledge.jsx';
+import Processes from './platform/Processes.jsx';
+import Team from './platform/Team.jsx';
+import Conversations from './platform/Conversations.jsx';
 import './platform.css';
 
 const nav = [
@@ -29,8 +34,9 @@ const nav = [
   { to: '/app/agentes', label: 'Agentes', Icon: IconAgent },
   { to: '/app/processos', label: 'Processos', Icon: IconProcess },
   { to: '/app/conhecimento', label: 'Contexto da empresa', Icon: IconDoc },
-  { to: '/app/integracoes', label: 'Integrações', Icon: IconPlug },
+  { to: '/app/conversas', label: 'Conversas', Icon: IconInbox, badge: 'human' },
   { to: '/app/aprovacoes', label: 'Aprovações', Icon: IconShield, badge: 'pending' },
+  { to: '/app/integracoes', label: 'Integrações', Icon: IconPlug },
   { to: '/app/testar', label: 'Testar conversas', Icon: IconChat },
   { to: '/app/equipe', label: 'Equipe', Icon: IconTeam },
 ];
@@ -160,6 +166,11 @@ export default function Platform() {
                       {summary.pending}
                     </span>
                   )}
+                  {badge === 'human' && summary?.humanConversations > 0 && (
+                    <span className="side-badge side-badge-soft tabular" aria-label={`${summary.humanConversations} com atendimento humano`}>
+                      {summary.humanConversations}
+                    </span>
+                  )}
                 </NavLink>
               </li>
             ))}
@@ -171,7 +182,7 @@ export default function Platform() {
           </span>
           <div className="user-meta">
             <strong>{user.name}</strong>
-            <span>{user.email}</span>
+            <span>{user.roleLabel}</span>
           </div>
           <button className="btn btn-ghost btn-sm logout" onClick={handleLogout}>
             Sair
@@ -181,6 +192,7 @@ export default function Platform() {
       <div className="scrim" onClick={() => setMenuOpen(false)} aria-hidden="true" />
 
       <main className="content">
+        {!user.emailVerified && <VerifyBanner email={user.email} notify={notify} />}
         <Routes>
           <Route index element={<Home {...shared} />} />
           <Route path="agentes" element={<Agents {...shared} />} />
@@ -188,42 +200,11 @@ export default function Platform() {
           <Route path="integracoes" element={<Integrations {...shared} />} />
           <Route path="aprovacoes" element={<Approvals {...shared} />} />
           <Route path="testar" element={<TestChat {...shared} />} />
-          <Route
-            path="processos"
-            element={
-              <Placeholder
-                title="Processos"
-                lede="Os passo a passos que os agentes seguem à risca, como reembolsos, agendamentos, triagem de chamados e admissões."
-                empty="Nenhum processo mapeado ainda"
-                detail="Aqui você vai descrever um processo em etapas ou enviar o documento que a equipe já usa e marcar as regras obrigatórias."
-                action="Mapear processo"
-              />
-            }
-          />
-          <Route
-            path="conhecimento"
-            element={
-              <Placeholder
-                title="Contexto da empresa"
-                lede="O que todo agente precisa saber: o que a empresa faz, para quem, como fala com clientes e o que nunca pode ser dito."
-                empty="Nenhum material enviado ainda"
-                detail="Aqui você vai enviar apresentações institucionais, manuais de marca e políticas gerais."
-                action="Enviar material"
-              />
-            }
-          />
-          <Route
-            path="equipe"
-            element={
-              <Placeholder
-                title="Equipe"
-                lede="Convide colegas e defina quem configura agentes, quem aprova ações e quem só acompanha."
-                empty={`Só você está em ${user.orgName} por enquanto`}
-                detail="Convide as pessoas que conhecem os processos de cada área e quem vai aprovar as ações dos agentes."
-                action="Convidar pessoa"
-              />
-            }
-          />
+          <Route path="processos" element={<Processes {...shared} />} />
+          <Route path="conhecimento" element={<Knowledge {...shared} />} />
+          <Route path="equipe" element={<Team {...shared} />} />
+          <Route path="conversas" element={<Conversations {...shared} />} />
+          <Route path="conversas/:id" element={<Conversations {...shared} />} />
         </Routes>
       </main>
 

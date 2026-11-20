@@ -52,35 +52,35 @@ export default function PortalArt({ className = '', label = 'Escultura de um por
       <svg viewBox={vb.join(' ')} preserveAspectRatio="xMidYMid meet">
         <defs>
           <linearGradient id="pa-front" x1="0" y1="0" x2="1" y2="0.35">
-            <stop offset="0" stopColor="#8fc77a" />
-            <stop offset="0.45" stopColor="#4f8a55" />
-            <stop offset="1" stopColor="#1f4a30" />
+            <stop offset="0" style={{ stopColor: 'color-mix(in srgb, var(--lime) 45%, var(--leaf))' }} />
+            <stop offset="0.45" style={{ stopColor: 'var(--leaf)' }} />
+            <stop offset="1" style={{ stopColor: 'color-mix(in srgb, var(--leaf) 45%, var(--forest))' }} />
           </linearGradient>
           <linearGradient id="pa-top" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#d6fba8" />
-            <stop offset="1" stopColor="#86c46a" />
+            <stop offset="0" style={{ stopColor: 'color-mix(in srgb, var(--lime) 70%, white)' }} />
+            <stop offset="1" style={{ stopColor: 'color-mix(in srgb, var(--lime) 65%, var(--leaf))' }} />
           </linearGradient>
           <linearGradient id="pa-right" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#1d4630" />
-            <stop offset="1" stopColor="#0d2318" />
+            <stop offset="0" style={{ stopColor: 'color-mix(in srgb, var(--leaf) 40%, var(--forest))' }} />
+            <stop offset="1" style={{ stopColor: 'color-mix(in srgb, var(--forest) 85%, black)' }} />
           </linearGradient>
           <linearGradient id="pa-inner-left" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#2a5a3a" />
-            <stop offset="1" stopColor="#173826" />
+            <stop offset="0" style={{ stopColor: 'color-mix(in srgb, var(--leaf) 60%, var(--forest))' }} />
+            <stop offset="1" style={{ stopColor: 'color-mix(in srgb, var(--leaf) 30%, var(--forest))' }} />
           </linearGradient>
           <linearGradient id="pa-floor" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#5f9d5d" />
-            <stop offset="1" stopColor="#2c5c3a" />
+            <stop offset="0" style={{ stopColor: 'color-mix(in srgb, var(--leaf) 80%, var(--lime))' }} />
+            <stop offset="1" style={{ stopColor: 'color-mix(in srgb, var(--leaf) 60%, var(--forest))' }} />
           </linearGradient>
         </defs>
-        <ellipse cx={box[0] + box[2] / 2} cy={box[1] + box[3] - 18} rx={box[2] * 0.48} ry="26" fill="#07170f" opacity="0.55" />
+        <ellipse cx={box[0] + box[2] / 2} cy={box[1] + box[3] - 18} rx={box[2] * 0.48} ry="26" style={{ fill: 'color-mix(in srgb, var(--forest) 60%, black)' }} opacity="0.55" />
         {blades.map((b, idx) => (
           <g key={b.key} className="portal-blade" style={{ animationDelay: `${0.08 * idx}s` }}>
             <polygon points={b.innerFloor} fill="url(#pa-floor)" />
             <polygon points={b.innerLeft} fill="url(#pa-inner-left)" />
             <polygon points={b.right} fill="url(#pa-right)" />
             <polygon points={b.top} fill="url(#pa-top)" />
-            <path d={b.frontPath} fill="url(#pa-front)" fillRule="evenodd" stroke="#b8f479" strokeOpacity="0.18" strokeWidth="0.8" />
+            <path d={b.frontPath} fill="url(#pa-front)" fillRule="evenodd" style={{ stroke: 'var(--lime)' }} strokeOpacity="0.18" strokeWidth="0.8" />
           </g>
         ))}
       </svg>

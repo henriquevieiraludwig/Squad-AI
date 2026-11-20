@@ -262,6 +262,17 @@ export function registerPartnerRoutes(app) {
     res.json({ ok: true });
   }));
 
+  // Exclusão definitiva (fim de contrato, pedido do cliente): apaga tudo da empresa em cascata.
+  app.delete('/api/partner/:pid/clients/:orgId', wrap(async (req, res) => {
+    const p = await targetPartner(req, res);
+    if (!p) return;
+    const org = await db.get('SELECT id, name FROM organizations WHERE id = $1 AND partner_id = $2', [Number(req.params.orgId), p.id]);
+    if (!org) return res.status(404).json({ error: 'Cliente não encontrado.' });
+    if (clean(req.body?.confirm, 120) !== org.name) return res.status(400).json({ error: 'Digite o nome exato da empresa para confirmar a exclusão.', fields: { confirm: 'O nome não confere.' } });
+    await db.run('DELETE FROM organizations WHERE id = $1', [org.id]);
+    res.json({ ok: true });
+  }));
+
   app.get('/api/partner/:pid/clients/:orgId/usage', wrap(async (req, res) => {
     const p = await targetPartner(req, res);
     if (!p) return;

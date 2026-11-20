@@ -9,7 +9,7 @@ export default function AgentList({ agents, loadError, reload, openCreate, compa
     if (emptyFiltered) return <EmptyState icon={<IconAgent />} title="Nenhum agente encontrado" text="Ajuste a busca ou os filtros." />;
     return (
       <EmptyState icon={<IconAgent />} title="Nenhum agente ainda" text="Crie o primeiro agente e escolha o processo que ele vai assumir.">
-        {!compact && (
+        {!compact && openCreate && (
           <button className="btn btn-secondary" onClick={openCreate}>
             Criar agente
           </button>

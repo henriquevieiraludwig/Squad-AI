@@ -3,7 +3,8 @@ import Logo, { Endorsement } from '../components/Logo.jsx';
 import HeroDemo from '../components/HeroDemo.jsx';
 import PortalArt from '../components/PortalArt.jsx';
 import { IconShield, IconHistory, IconLock } from '../components/Icons.jsx';
-import { useAuth } from '../auth.jsx';
+import { useAuth, homeFor } from '../auth.jsx';
+import { useBrand } from '../brand.jsx';
 import './landing.css';
 
 const steps = [
@@ -41,8 +42,10 @@ const platforms = ['Microsoft 365', 'Outlook', 'Teams', 'Google Workspace', 'Gma
 
 export default function Landing() {
   const { user } = useAuth();
-  const primaryTo = user ? '/app' : '/criar-conta';
-  const primaryLabel = user ? 'Abrir plataforma' : 'Criar conta da empresa';
+  const brand = useBrand();
+  // Sem cadastro aberto (comum em parceiros white label), a ação principal leva ao login.
+  const primaryTo = user ? homeFor(user) : brand.allowSignup ? '/criar-conta' : '/entrar';
+  const primaryLabel = user ? 'Abrir plataforma' : brand.allowSignup ? 'Criar conta da empresa' : 'Entrar na plataforma';
 
   return (
     <div className="landing">
@@ -61,10 +64,10 @@ export default function Landing() {
           </nav>
           <div className="site-actions">
             {user ? (
-              <Link to="/app" className="btn btn-secondary">
+              <Link to={homeFor(user)} className="btn btn-secondary">
                 Abrir plataforma
               </Link>
-            ) : (
+            ) : brand.allowSignup ? (
               <>
                 <Link to="/entrar" className="btn btn-ghost">
                   Entrar
@@ -73,6 +76,10 @@ export default function Landing() {
                   Criar conta
                 </Link>
               </>
+            ) : (
+              <Link to="/entrar" className="btn btn-secondary">
+                Entrar
+              </Link>
             )}
           </div>
         </div>
@@ -241,7 +248,12 @@ export default function Landing() {
         <div className="wrap footer-inner">
           <Logo />
           <Endorsement />
-          <p>© {new Date().getFullYear()} Squad AI. Agentes de IA para processos repetitivos.</p>
+          <p>
+            © {new Date().getFullYear()} {brand.name}.{' '}
+            {brand.termsUrl && <a href={brand.termsUrl}>Termos de uso</a>}{' '}
+            {brand.privacyUrl && <a href={brand.privacyUrl}>Privacidade</a>}{' '}
+            {brand.supportEmail && <a href={`mailto:${brand.supportEmail}`}>{brand.supportEmail}</a>}
+          </p>
         </div>
       </footer>
     </div>

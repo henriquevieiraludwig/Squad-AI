@@ -3,7 +3,7 @@
 import { ApiError } from './api.js';
 import { PROVIDERS, ACTIONS, ACTION_BY_ID, PROVIDER_BY_ID, connectionFor } from '../shared/catalog.js';
 
-const KEY = 'squad-ai-demo-v1';
+const KEY = 'squad-ai-demo-v2';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const AREAS = ['Atendimento', 'Vendas', 'Pessoas e RH', 'Operações', 'Financeiro', 'Jurídico', 'Outra'];
 
@@ -22,6 +22,9 @@ function db() {
   state.routes ??= {};
   state.runs ??= [];
   state.conversations ??= [];
+  state.docs ??= [];
+  state.processes ??= [];
+  state.invites ??= [];
   return state;
 }
 
@@ -51,8 +54,24 @@ function currentUser() {
   const u = s.users.find((x) => x.id === s.sessionUserId);
   if (!u) return null;
   const org = s.orgs.find((o) => o.id === u.orgId);
-  return { id: u.id, name: u.name, email: u.email, role: u.role, orgId: u.orgId, orgName: org?.name ?? '' };
+  const role = u.role === 'admin' ? 'owner' : u.role;
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role,
+    roleLabel: ROLE_LABELS[role],
+    orgId: u.orgId,
+    orgName: org?.name ?? '',
+    emailVerified: true,
+    isPartnerAdmin: false,
+    isPlatformAdmin: false,
+    permissions: ['configurar', 'aprovar', 'atender', 'equipe', 'conversar'],
+  };
 }
+
+const ROLE_LABELS = { owner: 'Proprietário', admin: 'Administrador', approver: 'Aprovador', member: 'Membro' };
+const DEMO_LIMITS = { agents: 5, members: 10, messagesPerMonth: 2000, knowledgeChars: 400000 };
 
 function requireUser() {
   const u = currentUser();
@@ -287,6 +306,14 @@ function simulateChat(s, u, agent, text) {
 
 async function integrationRoutes(s, method, path, body) {
   let m;
+  if (path === '/brand') {
+    return {
+      brand: { name: 'Squad AI', isPlatform: true, logo: null, colors: { action: '#B8F479', dark: '#10271E', accent: '#346A42' }, showPoweredBy: true, allowSignup: true },
+    };
+  }
+  if (path === '/auth/forgot' || path === '/auth/resend-verification') return { ok: true };
+  const extra = await companyRoutes(s, method, path, body);
+  if (extra !== undefined) return extra;
   if (method === 'GET' && path === '/integrations') return listIntegrations(s, requireUser());
 
   if (method === 'GET' && path === '/summary') {
@@ -299,7 +326,10 @@ async function integrationRoutes(s, method, path, body) {
       pending: runs.filter((r) => r.status === 'pendente').length,
       executedWeek: runs.filter((r) => r.status === 'executada').length,
       toolsEnabled: [...agentIds].reduce((n, id) => n + Object.keys(s.tools[id] || {}).length, 0),
-      conversations: s.conversations.filter((c) => c.orgId === u.orgId).length,
+      conversations: s.conversations.filter((c) => c.orgId === u.orgId && c.messages?.length).length,
+      docs: s.docs.filter((d) => d.orgId === u.orgId).length,
+      processes: s.processes.filter((p) => p.orgId === u.orgId).length,
+      humanConversations: 0,
     };
   }
 
@@ -376,7 +406,15 @@ async function integrationRoutes(s, method, path, body) {
         s.conversations.push({ id: conversationId, orgId: u.orgId, agentId: agent.id });
       }
       await new Promise((r) => setTimeout(r, 700));
-      return { conversationId, ...simulateChat(s, u, agent, text) };
+      const out = simulateChat(s, u, agent, text);
+      const conv = s.conversations.find((c) => c.id === conversationId);
+      if (conv) {
+        conv.messages ??= [];
+        conv.messages.push({ id: nextId(), author: 'contato', text, at: now() }, { id: nextId(), author: 'agente', text: out.reply, at: now() });
+        conv.lastMessageAt = now();
+        conv.contact = u.name;
+      }
+      return { conversationId, ...out };
     }
   }
 
@@ -399,6 +437,133 @@ async function integrationRoutes(s, method, path, body) {
       run.decidedAt = now();
       run.decidedBy = u.id;
       return { status: run.status, result: run.result };
+    }
+  }
+  return undefined;
+}
+
+// ---------- Contexto, processos, equipe, conversas e uso (simulados) ----------
+
+const docView = (d) => ({ id: d.id, title: d.title, source: d.source, fileName: d.fileName, chars: d.content.length, createdAt: d.createdAt, createdBy: d.createdBy });
+
+function decodeUpload(fileName, data) {
+  const ext = String(fileName).toLowerCase().split('.').pop();
+  if (['txt', 'md', 'csv'].includes(ext)) {
+    try {
+      return new TextDecoder().decode(Uint8Array.from(atob(data), (c) => c.charCodeAt(0)));
+    } catch {
+      return '';
+    }
+  }
+  if (['pdf', 'docx'].includes(ext)) return `(Na versão completa, o texto de ${fileName} é extraído e enviado aos agentes.)`;
+  throw new ApiError('Formato não suportado. Envie PDF, DOCX, TXT, MD ou CSV.', 400);
+}
+
+async function companyRoutes(s, method, path, body) {
+  let m;
+  const u = () => requireUser();
+
+  if (path === '/usage' && method === 'GET') {
+    const me = u();
+    const used = s.docs.filter((d) => d.orgId === me.orgId).reduce((n, d) => n + d.content.length, 0);
+    return {
+      limits: DEMO_LIMITS,
+      month: { messages: s.conversations.filter((c) => c.orgId === me.orgId).reduce((n, c) => n + (c.messages?.length || 0) / 2, 0), inputTokens: 0, outputTokens: 0 },
+      counts: { agents: s.agents.filter((a) => a.orgId === me.orgId).length, members: 1 + s.invites.filter((i) => i.orgId === me.orgId).length, knowledgeChars: used },
+    };
+  }
+
+  if (path === '/knowledge') {
+    const me = u();
+    if (method === 'GET') {
+      const docs = s.docs.filter((d) => d.orgId === me.orgId).sort((a, b) => b.id - a.id);
+      return { docs: docs.map(docView), budget: { used: docs.reduce((n, d) => n + d.content.length, 0), max: DEMO_LIMITS.knowledgeChars } };
+    }
+    if (method === 'POST') {
+      const content = body.data ? decodeUpload(body.fileName, body.data) : String(body.text || '').trim();
+      const title = clean(body.title, 160) || String(body.fileName || '').replace(/\.[^.]+$/, '');
+      if (!title) throw new ApiError('Dê um título ao conteúdo.', 400, { title: 'Informe um título.' });
+      if (!content) throw new ApiError('O conteúdo está vazio.', 400);
+      const d = { id: nextId(), orgId: me.orgId, title, source: body.data ? 'arquivo' : 'texto', fileName: body.fileName || null, content, createdAt: now(), createdBy: me.name };
+      s.docs.push(d);
+      return { doc: docView(d) };
+    }
+  }
+  if ((m = path.match(/^\/knowledge\/(\d+)$/))) {
+    const me = u();
+    const d = s.docs.find((x) => x.id === Number(m[1]) && x.orgId === me.orgId);
+    if (!d) throw new ApiError('Documento não encontrado.', 404);
+    if (method === 'DELETE') {
+      s.docs = s.docs.filter((x) => x !== d);
+      return { ok: true };
+    }
+    return { doc: { ...docView(d), preview: d.content.slice(0, 6000), truncated: d.content.length > 6000 } };
+  }
+
+  if (path === '/processes' || (m = path.match(/^\/processes\/(\d+)$/))) {
+    const me = u();
+    const view = (p) => ({ ...p, agentName: s.agents.find((a) => a.id === p.agentId)?.name || null });
+    if (method === 'GET') return { processes: s.processes.filter((p) => p.orgId === me.orgId).map(view) };
+    if (method === 'DELETE') {
+      s.processes = s.processes.filter((p) => !(p.id === Number(m[1]) && p.orgId === me.orgId));
+      return { ok: true };
+    }
+    const steps = (body.steps || []).map((x) => clean(x, 1000)).filter(Boolean);
+    const fields = {};
+    if (!clean(body.title)) fields.title = 'Dê um nome ao processo.';
+    if (!steps.length) fields.steps = 'Descreva pelo menos uma etapa.';
+    if (Object.keys(fields).length) throw new ApiError('Revise os campos destacados.', 400, fields);
+    const data = { title: clean(body.title, 160), agentId: body.agentId ? Number(body.agentId) : null, trigger: clean(body.trigger, 400), steps, rules: clean(body.rules, 2000), active: body.active !== false, updatedAt: now() };
+    if (method === 'POST') {
+      const p = { id: nextId(), orgId: me.orgId, ...data };
+      s.processes.push(p);
+      return { process: view(p) };
+    }
+    const p = s.processes.find((x) => x.id === Number(m[1]) && x.orgId === me.orgId);
+    if (!p) throw new ApiError('Processo não encontrado.', 404);
+    Object.assign(p, data);
+    return { process: view(p) };
+  }
+
+  if (path === '/team' && method === 'GET') {
+    const me = u();
+    return {
+      members: [{ id: me.id, name: me.name, email: me.email, role: me.role, roleLabel: me.roleLabel, verified: true, createdAt: now() }],
+      invites: s.invites.filter((i) => i.orgId === me.orgId).map((i) => ({ ...i, roleLabel: ROLE_LABELS[i.role] })),
+      roles: ROLE_LABELS,
+    };
+  }
+  if (path === '/team/invites' && method === 'POST') {
+    const me = u();
+    const email = clean(body.email).toLowerCase();
+    if (!EMAIL_RE.test(email)) throw new ApiError('Use um e-mail válido.', 400, { email: 'E-mail inválido.' });
+    s.invites.push({ id: nextId(), orgId: me.orgId, email, role: body.role, createdAt: now(), expiresAt: new Date(Date.now() + 7 * 864e5).toISOString() });
+    return { ok: true };
+  }
+  if ((m = path.match(/^\/team\/invites\/(\d+)$/)) && method === 'DELETE') {
+    s.invites = s.invites.filter((i) => i.id !== Number(m[1]));
+    return { ok: true };
+  }
+
+  if (path.startsWith('/conversations')) {
+    const me = u();
+    const convs = s.conversations.filter((c) => c.orgId === me.orgId && c.messages?.length);
+    const agentName = (id) => s.agents.find((a) => a.id === id)?.name;
+    if ((m = path.match(/^\/conversations\/(\d+)$/))) {
+      const c = convs.find((x) => x.id === Number(m[1]));
+      if (!c) throw new ApiError('Conversa não encontrada.', 404);
+      return {
+        conversation: { id: c.id, channel: 'teste', contact: c.contact, handledBy: 'agente', agentName: agentName(c.agentId), canReply: false },
+        messages: c.messages,
+        actions: [],
+      };
+    }
+    if (method === 'GET') {
+      return {
+        conversations: convs
+          .sort((a, b) => (b.lastMessageAt > a.lastMessageAt ? 1 : -1))
+          .map((c) => ({ id: c.id, channel: 'teste', contact: c.contact, handledBy: 'agente', agentName: agentName(c.agentId), lastMessageAt: c.lastMessageAt, preview: c.messages.at(-1)?.text.slice(0, 140), pending: 0 })),
+      };
     }
   }
   return undefined;

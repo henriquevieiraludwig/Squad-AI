@@ -126,3 +126,47 @@ export const IconHistory = (p) => (
     <path d="M4 4v4.5h4.5M12 8v4l3 2" />
   </Svg>
 );
+export const IconInbox = (p) => (
+  <Svg {...p}>
+    <path d="M3 13h5l1.5 3h5L16 13h5" />
+    <path d="M5 5h14l2 8v6H3v-6z" />
+  </Svg>
+);
+export const IconUpload = (p) => (
+  <Svg size={18} {...p}>
+    <path d="M12 16V4M7 9l5-5 5 5" />
+    <path d="M4 16v4h16v-4" />
+  </Svg>
+);
+export const IconTrash = (p) => (
+  <Svg size={16} {...p}>
+    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+  </Svg>
+);
+export const IconPlus = (p) => (
+  <Svg size={18} {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Svg>
+);
+export const IconGlobe = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M3.5 12h17M12 3.5c2.5 2.6 3.5 5.4 3.5 8.5s-1 5.9-3.5 8.5c-2.5-2.6-3.5-5.4-3.5-8.5s1-5.9 3.5-8.5z" />
+  </Svg>
+);
+export const IconBrush = (p) => (
+  <Svg {...p}>
+    <path d="M14 4l6 6-8.5 8.5a3 3 0 0 1-2 .9L5 20l.6-4.5a3 3 0 0 1 .9-2z" />
+  </Svg>
+);
+export const IconBuilding = (p) => (
+  <Svg {...p}>
+    <path d="M4 21V5l8-2v18M12 9h8v12M8 8h.01M8 12h.01M8 16h.01M16 13h.01M16 17h.01" />
+  </Svg>
+);
+export const IconKey = (p) => (
+  <Svg {...p}>
+    <circle cx="8" cy="15" r="4" />
+    <path d="m11 12 9-9M16 7l3 3" />
+  </Svg>
+);

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useBrand } from '../brand.jsx';
 
 // Marca do Squad AI: três agentes conectados (o "squad"), em traço escuro sobre o quadrado verde-lima da Matriz AI.
 export function SquadMark({ size = 30 }) {
@@ -23,7 +24,19 @@ export function MatrizMark({ size = 18 }) {
   );
 }
 
+// Assinatura no rodapé. Na plataforma: "uma solução matriz.ai". Nos parceiros, só se eles quiserem mostrar.
 export function Endorsement({ onDark = false }) {
+  const brand = useBrand();
+  if (!brand.isPlatform) {
+    if (!brand.showPoweredBy) return null;
+    return (
+      <span className="endorse" style={{ color: onDark ? 'var(--on-dark-soft)' : 'var(--ink-faint)' }}>
+        tecnologia
+        <SquadMark size={18} />
+        <strong style={{ color: onDark ? 'var(--on-dark)' : 'var(--ink)' }}>Squad AI</strong>
+      </span>
+    );
+  }
   return (
     <span className="endorse" style={{ color: onDark ? 'var(--on-dark-soft)' : 'var(--ink-faint)' }}>
       uma solução
@@ -33,11 +46,30 @@ export function Endorsement({ onDark = false }) {
   );
 }
 
-export default function Logo({ to = '/', onDark = false }) {
+// Monograma para parceiros sem logotipo: inicial da marca sobre a cor de ação.
+function Monogram({ name, size = 30 }) {
   return (
-    <Link to={to} className="logo" aria-label="Squad AI, página inicial" style={{ color: onDark ? 'var(--on-dark)' : 'var(--ink)' }}>
-      <SquadMark />
-      <span>Squad AI</span>
+    <span className="logo-mono" style={{ width: size, height: size }} aria-hidden="true">
+      {name.trim()[0]?.toUpperCase()}
+    </span>
+  );
+}
+
+export function BrandMark({ size = 30 }) {
+  const brand = useBrand();
+  if (brand.logo) return <img src={brand.logo} alt="" className="logo-img" style={{ height: size, maxWidth: size * 4 }} />;
+  if (brand.isPlatform) return <SquadMark size={size} />;
+  return <Monogram name={brand.name} size={size} />;
+}
+
+export default function Logo({ to = '/', onDark = false }) {
+  const brand = useBrand();
+  // Logotipo enviado pelo parceiro costuma já trazer o nome; nesse caso não repetimos.
+  const showName = !brand.logo;
+  return (
+    <Link to={to} className="logo" aria-label={`${brand.name}, página inicial`} style={{ color: onDark ? 'var(--on-dark)' : 'var(--ink)' }}>
+      <BrandMark />
+      {showName && <span>{brand.name}</span>}
     </Link>
   );
 }

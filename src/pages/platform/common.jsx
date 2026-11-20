@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
 import { IconSearch } from '../../components/Icons.jsx';
 
-export function formatDate(sqlDate, withTime = false) {
-  if (!sqlDate) return '';
-  const d = new Date(sqlDate.replace(' ', 'T') + 'Z');
+export function formatDate(value, withTime = false) {
+  if (!value) return '';
+  // Aceita ISO (servidor) e o formato antigo "AAAA-MM-DD HH:MM:SS" (demonstração).
+  const d = new Date(/T|Z$/.test(value) ? value : `${value.replace(' ', 'T')}Z`);
   return d.toLocaleString('pt-BR', withTime ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } : { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
@@ -141,3 +142,5 @@ export const AGENT_STATUS = {
 };
 
 export const CHANNEL_LABEL = { teste: 'Conversa de teste', whatsapp: 'WhatsApp', telegram: 'Telegram' };
+
+export const fmtNumber = (n) => Number(n || 0).toLocaleString('pt-BR');

@@ -1,77 +1,102 @@
 # Squad AI
 
-Agentes de IA para empresas que querem automatizar processos repetitivos. Uma solução **matriz.ai**.
+Agentes de IA para empresas que querem automatizar processos repetitivos. Uma solução **matriz.ai**, pronta para ser vendida em **white label**.
 
-As empresas criam agentes, conectam o Microsoft 365, o Google Workspace e os canais de conversa (Teams, Google Chat, WhatsApp, Telegram, Slack) e escolhem, ação por ação, o que cada agente faz sozinho e o que precisa de aprovação humana.
+As empresas ensinam o contexto e os processos, conectam o Microsoft 365, o Google Workspace e os canais de conversa (WhatsApp, Telegram, Teams, Google Chat, Slack) e escolhem, ação por ação, o que cada agente faz sozinho e o que precisa de aprovação humana.
+
+## Como o white label funciona
+
+```
+Plataforma (Matriz AI)
+ └── Parceiros (revendedores): marca, cores, logotipo, domínios, apps OAuth próprios
+      └── Clientes (empresas): equipe, agentes, contexto, processos, integrações, conversas
+```
+
+- **Plataforma:** a equipe da Matriz cria parceiros e acompanha o uso de IA de cada um (base para cobrar).
+- **Parceiro:** acessa `/parceiro` no próprio domínio, configura a marca, cria clientes, define limites (mensagens/mês, agentes, pessoas, espaço de contexto) e suspende ou exclui clientes.
+- **Cliente:** acessa `/app` no domínio do parceiro e vê só a marca do parceiro. O rodapé "tecnologia Squad AI" é opcional.
+
+O parceiro é escolhido pelo domínio da requisição. Cada parceiro pode ter vários domínios e, com `PARTNER_SUBDOMAIN_BASE`, ganha `slug.seudominio` automaticamente.
 
 ## Rodar localmente
 
 ```bash
 npm install
-cp .env.example .env   # preencha o que for usar
+cp .env.example .env
 npm run dev
 ```
 
-- Site: http://localhost:5173 (o Vite repassa `/api` para a API)
-- API: http://localhost:3001
+- Site: http://localhost:5173 (o Vite repassa `/api` para a API em http://localhost:3001)
+- Sem `DATABASE_URL`, o banco é um PostgreSQL embutido (PGlite) em `data/pglite`. Nada para instalar.
+- Sem `RESEND_API_KEY`, os e-mails (convites, senha) aparecem no terminal.
+- Para ver a marca de um parceiro sem configurar domínio: `http://localhost:5173/?parceiro=slug`.
 
-Sem `ANTHROPIC_API_KEY`, tudo funciona menos a conversa com os agentes, que mostra uma mensagem pedindo a chave.
-
-## Produção
+Primeiro administrador da plataforma:
 
 ```bash
-npm run build
-NODE_ENV=production npm start
+npm run create-admin -- voce@empresa.com
 ```
 
-Em produção, `ENCRYPTION_KEY` é obrigatória e `PUBLIC_URL` precisa ser HTTPS (exigência dos webhooks do Telegram e da Meta e dos retornos de OAuth).
+O comando mostra o link para definir nome e senha.
 
-## Demonstração sem servidor
+## Testes
 
-`npm run build:demo` gera `dist-demo/squad-ai-demo.html`, um arquivo único que roda no navegador com dados locais e respostas simuladas.
+```bash
+npm test
+```
 
-## Integrações
+Rodam os fluxos completos da API com PGlite em memória, um Claude falso e um Telegram falso: cadastro, senha, convites e papéis, isolamento entre empresas e entre parceiros, contexto e processos no prompt, aprovações, atendimento humano, limites do plano, white label e LGPD. Para rodar contra um Postgres real, defina `DATABASE_URL`. O GitHub Actions roda os dois (`.github/workflows/ci.yml`).
 
-| Plataforma | Conexão | O que os agentes podem fazer |
-| --- | --- | --- |
-| Microsoft 365 | OAuth (Microsoft Entra) | Enviar e buscar e-mails no Outlook, criar e consultar eventos, listar canais e publicar no Teams, buscar arquivos no OneDrive |
-| Google Workspace | OAuth (Google Cloud) | Enviar e buscar e-mails no Gmail, criar e consultar eventos na Agenda, buscar no Drive, listar espaços e enviar no Google Chat |
-| Slack | OAuth (app do Slack) | Listar canais e enviar mensagens |
-| WhatsApp Business | Token da Cloud API | Responder clientes (canal de entrada) e enviar mensagens |
-| Telegram | Token do @BotFather | Responder conversas (canal de entrada) e enviar mensagens |
+## Produção (Render)
 
-O catálogo fica em `shared/catalog.js`; a execução, em `server/connectors/`. Para adicionar uma ação: descreva-a no catálogo e implemente a função com o mesmo `id` no conector.
+O arquivo `render.yaml` cria o servidor e o banco PostgreSQL: no Render, **New > Blueprint** e escolha este repositório. Preencha as variáveis marcadas como `sync: false`. Depois do primeiro deploy, abra o Shell do serviço e rode `npm run create-admin -- seu@email`.
 
-### Cadastrar os apps da plataforma (uma vez, pelo operador do Squad AI)
+Variáveis principais (todas em `.env.example`): `DATABASE_URL`, `ENCRYPTION_KEY` (nunca troque depois de criada), `PUBLIC_URL`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY` e `EMAIL_FROM`, as credenciais dos apps Microsoft, Google e Slack e, opcionalmente, `SENTRY_DSN`.
 
-Use como endereço de retorno `PUBLIC_URL/api/oauth/callback/<provedor>`.
+## Estrutura
 
-- **Microsoft Entra ID**: registre um app multilocatário, adicione o retorno `.../api/oauth/callback/microsoft`, crie um segredo e libere as permissões delegadas `User.Read Mail.Read Mail.Send Calendars.ReadWrite Team.ReadBasic.All Channel.ReadBasic.All ChannelMessage.Send Files.Read.All offline_access`.
-- **Google Cloud**: crie um cliente OAuth do tipo Web com o retorno `.../api/oauth/callback/google`, ative as APIs Gmail, Calendar, Drive e Chat e configure a tela de consentimento. Escopos sensíveis exigem verificação do Google antes do uso público.
-- **Slack**: crie um app com os escopos de bot `chat:write channels:read groups:read` e o retorno `.../api/oauth/callback/slack`.
+```
+server/
+  index.js            app Express, segurança, arquivos do site
+  db.js, schema.js    PostgreSQL (pg ou PGlite) e migrações
+  brand.js            parceiros, marca por domínio, apps OAuth do parceiro
+  auth.js             senhas, sessões, papéis e permissões
+  email.js            e-mails com a marca do parceiro (Resend)
+  jobs.js             fila de tarefas com novas tentativas
+  usage.js            medição de uso e limites
+  knowledge.js        extração de texto (PDF, DOCX, TXT, MD, CSV) e contexto do agente
+  agent/runtime.js    agente: Claude com ferramentas, aprovações e registro
+  connectors/         Microsoft 365, Google, Slack, Telegram, WhatsApp
+  routes/             auth, empresa, integrações e webhooks, parceiro e plataforma
+shared/catalog.js     plataformas e ações (servidor e site)
+src/                  site em React
+test/                 testes de ponta a ponta
+```
 
-WhatsApp e Telegram não precisam de cadastro pela plataforma: cada empresa informa o próprio token na tela de Integrações.
+## Permissões
 
-## Como os agentes executam ações
+| Papel | O que pode |
+| --- | --- |
+| Proprietário | Tudo, inclusive transferir a propriedade e exportar os dados |
+| Administrador | Configura agentes, integrações, contexto, processos e equipe; aprova ações |
+| Aprovador | Aprova ou recusa ações e atende conversas |
+| Membro | Conversa com os agentes e acompanha |
 
-`server/agent/runtime.js` roda um loop de uso de ferramentas com o Claude (`claude-opus-5-5`, esforço `medium`, fallback automático em caso de recusa):
+## Segurança e LGPD
 
-1. Só entram como ferramentas as ações liberadas no agente **e** cuja plataforma está conectada.
-2. Ação em modo **Automática** executa na hora. Ação em modo **Pede aprovação** vira um pedido em *Aprovações* e o agente avisa que está aguardando.
-3. Quando alguém aprova ou recusa, a ação é executada (ou não), o contato é avisado no WhatsApp/Telegram e o agente recebe a decisão no próximo turno.
-4. Toda ação fica registrada com entrada, resultado, agente e quem decidiu.
+- Senhas com `scrypt`; sessão em cookie `httpOnly` ligada ao parceiro do domínio.
+- Credenciais das integrações e dos apps OAuth dos parceiros criptografadas com AES-256-GCM.
+- Dados isolados por empresa e por parceiro em todas as consultas (coberto pelos testes).
+- Tokens de uso único para convite, senha (1 hora) e confirmação de e-mail.
+- Webhooks com chave aleatória na URL, segredo do Telegram e assinatura da Meta.
+- Exportação completa dos dados pelo proprietário e exclusão definitiva do cliente pelo parceiro.
+- Escopos restritos do Google desligados por padrão (exigem avaliação de segurança anual).
 
-Mensagens que chegam pelo WhatsApp e pelo Telegram vão para o agente escolhido para o canal, e a resposta volta pelo mesmo canal.
+## O que ainda não existe
 
-## Segurança
+- Integração com gateway de pagamento (a plataforma já mede o uso por parceiro e por cliente).
+- Receber mensagens pelo Teams, Google Chat e Slack (hoje os agentes só enviam nesses canais).
+- Conexão do WhatsApp com um clique (Embedded Signup da Meta).
+- Login corporativo (SSO).
 
-- Senhas com `scrypt`; sessão em cookie `httpOnly` com token guardado como hash.
-- Credenciais das integrações criptografadas com AES-256-GCM.
-- `state` de uso único nos fluxos OAuth; webhooks com chave aleatória na URL, token secreto do Telegram e assinatura `X-Hub-Signature-256` da Meta (quando a chave secreta do app é informada).
-- Dados isolados por empresa em todas as consultas.
-
-## Próximas etapas
-
-- Canais de entrada para Teams (Bot Framework), Google Chat e Slack (Events API).
-- Telas de Processos e Contexto da empresa alimentando o prompt dos agentes.
-- Convites de equipe e papéis (quem configura, quem aprova).
+Veja `docs/o-que-voce-precisa-fazer.md` para os passos que dependem de contas, contratos e cadastros.

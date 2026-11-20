@@ -12,6 +12,7 @@
   --leaf: #346a42; /* destaques nos títulos */
   --lime: #b8f479; /* ação principal */
   --lime-hover: #a6e862;
+  --on-action: #10271e; /* texto sobre a cor de ação (calculado pela marca) */
   --soft: #eaf3e9; /* ícones e itens selecionados */
   --line: #dce6dc; /* bordas finas */
   --line-strong: #c3d2c4;
@@ -139,6 +140,22 @@ textarea {
   text-decoration: none;
 }
 
+.logo-mono {
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--lime);
+  color: var(--on-action);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.logo-img {
+  display: block;
+  width: auto;
+  object-fit: contain;
+}
+
 .endorse {
   display: inline-flex;
   align-items: center;
@@ -160,7 +177,7 @@ textarea {
   display: grid;
   place-items: center;
   /* Luz lateral vinda da esquerda */
-  background: radial-gradient(ellipse 70% 60% at 22% 42%, rgba(52, 106, 66, 0.55), rgba(16, 39, 30, 0) 70%);
+  background: radial-gradient(ellipse 70% 60% at 22% 42%, color-mix(in srgb, var(--leaf) 55%, transparent), transparent 70%);
 }
 
 .portal svg {
@@ -213,7 +230,7 @@ textarea {
 /* Ação principal: verde-lima, uma por tela */
 .btn-primary {
   background: var(--lime);
-  color: var(--forest);
+  color: var(--on-action);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -292,6 +309,7 @@ textarea {
   display: grid;
   gap: 6px;
   min-width: 0;
+  align-content: start;
 }
 
 .field label,

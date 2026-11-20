@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout.jsx';
 import PasswordField from '../components/PasswordField.jsx';
 import { useAuth } from '../auth.jsx';
+import { useBrand } from '../brand.jsx';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -17,6 +18,7 @@ function validate(v) {
 
 export default function Signup() {
   const { signup } = useAuth();
+  const brand = useBrand();
   const navigate = useNavigate();
   const [values, setValues] = useState({ name: '', company: '', email: '', password: '' });
   const [fields, setFields] = useState({});
@@ -69,6 +71,17 @@ export default function Signup() {
     </div>
   );
 
+  if (!brand.allowSignup) {
+    return (
+      <AuthLayout aside={<p className="auth-quote">O acesso ao {brand.name} é feito por convite.</p>}>
+        <h1>Cadastro por convite</h1>
+        <p className="auth-sub">
+          Peça para o administrador da sua empresa enviar um convite para o seu e-mail. Já tem acesso? <Link to="/entrar">Entrar</Link>
+        </p>
+      </AuthLayout>
+    );
+  }
+
   return (
     <AuthLayout
       aside={
@@ -117,7 +130,9 @@ export default function Signup() {
           {submitting ? 'Criando conta…' : 'Criar conta'}
         </button>
         <p className="auth-legal">
-          Ao criar a conta, você concorda com os Termos de uso e a Política de privacidade do Squad AI.
+          Ao criar a conta, você concorda com os{' '}
+          {brand.termsUrl ? <a href={brand.termsUrl}>Termos de uso</a> : 'Termos de uso'} e a{' '}
+          {brand.privacyUrl ? <a href={brand.privacyUrl}>Política de privacidade</a> : 'Política de privacidade'} do {brand.name}.
         </p>
       </form>
     </AuthLayout>

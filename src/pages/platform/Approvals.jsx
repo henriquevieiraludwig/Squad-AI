@@ -6,6 +6,7 @@ import { PageHead, SearchInput, FilterChips, EmptyState, ErrorState, LoadingRows
 export default function Approvals({ notify, refreshSummary, summary }) {
   const [tab, setTab] = useState('pendente');
   const [runs, setRuns] = useState(null);
+  const [canDecide, setCanDecide] = useState(false);
   const [error, setError] = useState('');
   const [deciding, setDeciding] = useState(null);
   const [query, setQuery] = useState('');
@@ -15,8 +16,9 @@ export default function Approvals({ notify, refreshSummary, summary }) {
     setError('');
     setRuns(null);
     try {
-      const { runs } = await api(`/approvals?status=${tab === 'pendente' ? 'pendente' : 'todas'}`);
-      setRuns(runs);
+      const data = await api(`/approvals?status=${tab === 'pendente' ? 'pendente' : 'todas'}`);
+      setRuns(data.runs);
+      setCanDecide(data.canDecide);
     } catch (err) {
       setError(err.message);
     }
@@ -111,6 +113,9 @@ export default function Approvals({ notify, refreshSummary, summary }) {
                   <span className="pill pill-warn">Aguardando</span>
                 </div>
                 <InputDetails input={r.input} />
+                {!canDecide ? (
+                  <p className="muted">Só aprovadores e administradores podem decidir este pedido.</p>
+                ) : (
                 <div className="approval-actions">
                   <button className="btn btn-secondary" onClick={() => decide(r, false)} disabled={Boolean(deciding)}>
                     {deciding === `${r.id}-false` && <span className="spinner" aria-hidden="true" />}
@@ -121,6 +126,7 @@ export default function Approvals({ notify, refreshSummary, summary }) {
                     Aprovar e executar
                   </button>
                 </div>
+                )}
               </li>
             ))}
           </ul>

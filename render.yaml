@@ -1,0 +1,53 @@
+# Blueprint do Render: cria o servidor web e o banco PostgreSQL.
+# No Render: New > Blueprint > escolha este repositório. Depois preencha as variáveis marcadas com sync: false.
+services:
+  - type: web
+    name: squad-ai
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: DATABASE_URL
+        fromDatabase:
+          name: squad-ai-db
+          property: connectionString
+      - key: ENCRYPTION_KEY
+        generateValue: true # 32 bytes aleatórios em base64. Nunca troque depois de criado.
+      - key: PUBLIC_URL
+        sync: false # ex.: https://app.squadai.com.br
+      - key: APP_URL
+        sync: false # normalmente igual ao PUBLIC_URL
+      - key: PARTNER_SUBDOMAIN_BASE
+        sync: false # ex.: squadai.com.br (parceiros ganham parceiro.squadai.com.br)
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false # ex.: nao-responda@squadai.com.br (domínio verificado no Resend)
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: SLACK_CLIENT_ID
+        sync: false
+      - key: SLACK_CLIENT_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+databases:
+  - name: squad-ai-db
+    plan: basic-256mb
+    region: oregon
+    postgresMajorVersion: '16'

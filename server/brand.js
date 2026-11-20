@@ -72,8 +72,9 @@ export async function resolvePartner(req, res, next) {
   try {
     let host = req.hostname;
     // Fora de produção, ?parceiro=slug ajuda a testar marcas sem configurar domínios.
-    if (process.env.NODE_ENV !== 'production' && req.query?.parceiro) {
-      const p = await db.get('SELECT * FROM partners WHERE slug = $1', [String(req.query.parceiro)]);
+    const override = req.query?.parceiro || req.get('x-partner-slug');
+    if (process.env.NODE_ENV !== 'production' && override) {
+      const p = await db.get('SELECT * FROM partners WHERE slug = $1', [String(override)]);
       if (p) {
         req.partner = p;
         return next();

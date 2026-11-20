@@ -494,6 +494,25 @@ export function registerOrgRoutes(app) {
   }));
 
   app.get('/api/usage', requireOrg(), h(async (req, res) => res.json(await usageSummary(req.user.orgId))));
+
+  // LGPD: o proprietário baixa todos os dados da empresa guardados na plataforma.
+  app.get('/api/org/export', requireOrg('equipe'), h(async (req, res) => {
+    if (req.user.role !== 'owner') return res.status(403).json({ error: 'Só o proprietário pode exportar os dados da empresa.' });
+    const o = req.user.orgId;
+    const [org, users, agents, docs, processes, conversations, messages, runs, usage] = await Promise.all([
+      db.get('SELECT id, name, created_at FROM organizations WHERE id = $1', [o]),
+      db.all('SELECT id, name, email, role, created_at FROM users WHERE org_id = $1', [o]),
+      db.all('SELECT * FROM agents WHERE org_id = $1', [o]),
+      db.all('SELECT id, title, source, file_name, content, created_at FROM knowledge_docs WHERE org_id = $1', [o]),
+      db.all('SELECT * FROM processes WHERE org_id = $1', [o]),
+      db.all('SELECT id, agent_id, channel, contact_label, handled_by, created_at FROM conversations WHERE org_id = $1', [o]),
+      db.all('SELECT m.conversation_id, m.role, m.author, m.content, m.created_at FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE c.org_id = $1 ORDER BY m.id', [o]),
+      db.all('SELECT id, agent_id, conversation_id, action_id, input, status, result, requested_at, decided_at FROM action_runs WHERE org_id = $1', [o]),
+      db.all('SELECT agent_id, channel, model, input_tokens, output_tokens, created_at FROM usage_events WHERE org_id = $1', [o]),
+    ]);
+    res.set('Content-Disposition', `attachment; filename="dados-${org.id}.json"`);
+    res.json({ exportedAt: new Date().toISOString(), organization: org, users, agents, knowledge: docs, processes, conversations, messages, actions: runs, usage });
+  }));
 }
 
 // Texto curto de uma mensagem guardada no formato da API.
