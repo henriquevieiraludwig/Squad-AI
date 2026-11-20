@@ -1,0 +1,166 @@
+.auth {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  background: var(--bg);
+}
+
+.auth-main {
+  display: flex;
+  flex-direction: column;
+  padding: 28px clamp(16px, 5vw, 64px);
+  min-width: 0;
+}
+
+.auth-top,
+.auth-foot {
+  width: 100%;
+  max-width: 400px;
+  margin-inline: auto;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  margin: auto;
+  padding-block: 40px;
+}
+
+.auth-card h1 {
+  font-size: var(--step-4);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.auth-sub {
+  margin-top: 8px;
+  color: var(--ink-soft);
+}
+
+.auth-sub a,
+.auth-back a {
+  color: var(--leaf);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.auth-form .btn {
+  margin-top: 4px;
+  min-height: 48px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.auth-legal {
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+
+.auth-back {
+  margin-top: 24px;
+  font-size: var(--step--1);
+}
+
+/* Painel escuro com a arte */
+
+.auth-aside {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  margin: 12px 12px 12px 0;
+  height: calc(100vh - 24px);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  border-radius: var(--r-panel);
+  background: var(--forest);
+  color: var(--on-dark);
+  overflow: hidden;
+}
+
+.auth-art {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-art .portal {
+  max-width: 560px;
+}
+
+.auth-aside-body {
+  padding: 0 clamp(24px, 4vw, 48px) clamp(28px, 4vw, 44px);
+  max-width: 46ch;
+}
+
+.auth-quote {
+  font-size: clamp(1.5rem, 1.1rem + 1vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+
+.auth-quote-sub {
+  margin-top: 10px;
+  color: var(--on-dark-soft);
+}
+
+.auth-steps {
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: s;
+  display: grid;
+  gap: 12px;
+}
+
+.auth-steps li {
+  counter-increment: s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--on-dark);
+}
+
+.auth-steps li::before {
+  content: counter(s);
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(184, 244, 121, 0.14);
+  color: var(--lime);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .auth {
+    grid-template-columns: 1fr;
+  }
+  .auth-aside {
+    display: none;
+  }
+  .auth-card {
+    margin-top: 24px;
+    padding-top: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}
