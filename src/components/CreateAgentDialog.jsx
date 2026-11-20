@@ -1,7 +1,8 @@
+import AvatarPicker from './AvatarPicker.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 
-const empty = { name: '', area: '', roleDescription: '' };
+const empty = { name: '', area: '', roleDescription: '', avatar: 'avatar-1' };
 
 export default function CreateAgentDialog({ open, onClose, onCreated, areas }) {
   const ref = useRef(null);
@@ -81,6 +82,8 @@ export default function CreateAgentDialog({ open, onClose, onCreated, areas }) {
               </span>
             )}
           </div>
+
+          <AvatarPicker value={values.avatar} onChange={(v) => setValues((x) => ({ ...x, avatar: v }))} />
 
           <fieldset className="field area-picker" aria-describedby={fields.area ? 'agent-area-error' : undefined}>
             <legend>Área</legend>

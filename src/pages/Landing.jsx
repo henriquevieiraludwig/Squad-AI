@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import Logo, { Endorsement } from '../components/Logo.jsx';
 import HeroDemo from '../components/HeroDemo.jsx';
-import PortalArt from '../components/PortalArt.jsx';
+import heroTeam from '../assets/hero-team.webp';
 import { IconShield, IconHistory, IconLock } from '../components/Icons.jsx';
 import { useAuth, homeFor } from '../auth.jsx';
 import { useBrand } from '../brand.jsx';
@@ -107,7 +107,7 @@ export default function Landing() {
               </div>
             </div>
             <div className="hero-art">
-              <PortalArt />
+              <img src={heroTeam} alt="Oito agentes de IA, cada um representado por uma pessoa" className="hero-team" />
             </div>
           </div>
         </section>

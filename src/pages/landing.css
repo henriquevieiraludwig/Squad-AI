@@ -99,11 +99,13 @@
 }
 
 .hero-art {
-  aspect-ratio: 1 / 1;
   max-width: 100%;
-  border-radius: var(--r-panel);
-  background: var(--forest);
-  overflow: hidden;
+}
+
+.hero-team {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 /* ---------- Seções ---------- */

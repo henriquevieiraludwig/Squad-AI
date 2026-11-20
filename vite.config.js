@@ -10,5 +10,5 @@ export default defineConfig({
     proxy: { '/api': 'http://localhost:3001' },
   },
   // A demonstração vira um único HTML, então tudo precisa caber num só arquivo JS.
-  build: demo ? { rollupOptions: { output: { inlineDynamicImports: true } } } : {},
+  build: demo ? { assetsInlineLimit: 1_000_000, rollupOptions: { output: { inlineDynamicImports: true } } } : {},
 });

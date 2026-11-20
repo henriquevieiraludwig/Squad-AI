@@ -592,3 +592,71 @@ select.input {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Avatares ---------- */
+
+.agent-photo {
+  flex: none;
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--forest);
+}
+
+.avatar-picker {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.avatar-picker legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 340px;
+}
+
+.avatar-option {
+  position: relative;
+  display: block;
+  border-radius: 50%;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+  transition: outline-color 0.15s ease;
+}
+
+.avatar-option img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--forest);
+}
+
+.avatar-option:hover {
+  outline-color: var(--line-strong);
+}
+
+.avatar-option.is-on {
+  outline-color: var(--leaf);
+}
+
+.avatar-option:has(input:focus-visible) {
+  outline-color: var(--leaf);
+  box-shadow: var(--focus);
+}
+
+.avatar-edit {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  flex-wrap: wrap;
+}

@@ -233,6 +233,16 @@ describe('plataforma', () => {
     await P.db.run(`UPDATE organizations SET limits = '{}' WHERE name = 'Casa Aurora'`);
   });
 
+  it('salva o avatar escolhido e recusa um avatar fora da lista', async () => {
+    const ok = await ana.post('/api/agents', { name: 'Agente Avatar', area: 'Vendas', avatar: 'avatar-3' });
+    assert.equal(ok.status, 201);
+    assert.equal(ok.body.agent.avatar, 'avatar-3');
+    const bad = await ana.post('/api/agents', { name: 'Agente X', area: 'Vendas', avatar: 'avatar-99' });
+    assert.equal(bad.status, 400);
+    const up = await ana.put(`/api/agents/${ok.body.agent.id}`, { avatar: 'avatar-7' });
+    assert.equal(up.body.agent.avatar, 'avatar-7');
+  });
+
   it('white label: plataforma cria parceiro, parceiro configura marca e cria cliente no próprio domínio', async () => {
     // Administrador da plataforma (criado como pelo script create-admin).
     const { createToken } = await import('../server/routes/auth.js');

@@ -5,6 +5,8 @@ import { PROVIDERS, PROVIDER_BY_ID, connectionFor, defaultMode } from '../../../
 import { IconChat } from '../../components/Icons.jsx';
 import { can } from '../../auth.jsx';
 import { PageHead, SearchInput, FilterChips, Monogram, ErrorState, LoadingRows, AGENT_STATUS, formatDate } from './common.jsx';
+import AgentAvatar from '../../components/AgentAvatar.jsx';
+import AvatarPicker from '../../components/AvatarPicker.jsx';
 
 const MODE_OPTIONS = [
   { value: 'off', label: 'Desligada' },
@@ -106,6 +108,35 @@ export default function AgentDetail({ user, notify, refreshSummary }) {
         <span>Criado em {formatDate(agent.createdAt)}</span>
         <span className="tabular">{enabledCount} ações liberadas</span>
       </p>
+
+      <section className="panel" aria-labelledby="avatar-title">
+        <div className="panel-head">
+          <div>
+            <h2 id="avatar-title">Avatar</h2>
+            <p className="panel-sub">Aparece na lista de agentes e nas conversas.</p>
+          </div>
+        </div>
+        {editable ? (
+          <div className="avatar-edit">
+            <AgentAvatar avatar={agent.avatar} name={agent.name} size={64} />
+            <AvatarPicker
+              label="Escolha uma pessoa"
+              value={agent.avatar || 'avatar-1'}
+              onChange={async (id) => {
+                try {
+                  await api(`/agents/${agent.id}`, { method: 'PUT', body: { avatar: id } });
+                  setData((d) => ({ ...d, agent: { ...d.agent, avatar: id } }));
+                  notify('Avatar atualizado.');
+                } catch (err) {
+                  notify(err.message, 'error');
+                }
+              }}
+            />
+          </div>
+        ) : (
+          <AgentAvatar avatar={agent.avatar} name={agent.name} size={64} />
+        )}
+      </section>
 
       <section className="panel" aria-labelledby="know-title">
         <div className="panel-head">

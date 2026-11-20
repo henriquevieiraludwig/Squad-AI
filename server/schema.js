@@ -243,4 +243,8 @@ export const MIGRATIONS = [
   ALTER TABLE usage_events ENABLE ROW LEVEL SECURITY;
   ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
   `,
+  `
+  -- Avatar escolhido para o agente (avatar-1 a avatar-8).
+  ALTER TABLE agents ADD COLUMN IF NOT EXISTS avatar TEXT;
+  `,
 ];

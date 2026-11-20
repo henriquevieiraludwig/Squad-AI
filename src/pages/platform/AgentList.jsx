@@ -1,3 +1,4 @@
+import AgentAvatar from '../../components/AgentAvatar.jsx';
 import { Link } from 'react-router-dom';
 import { IconAgent } from '../../components/Icons.jsx';
 import { AGENT_STATUS, EmptyState, ErrorState, LoadingRows, formatDate } from './common.jsx';
@@ -24,9 +25,7 @@ export default function AgentList({ agents, loadError, reload, openCreate, compa
         return (
           <li key={a.id}>
             <Link to={`/app/agentes/${a.id}`} className="agent">
-              <span className="agent-avatar" aria-hidden="true">
-                {a.name.trim()[0]?.toUpperCase()}
-              </span>
+              <AgentAvatar avatar={a.avatar} name={a.name} />
               <span className="agent-main">
                 <span className="agent-title">
                   <strong>{a.name}</strong>

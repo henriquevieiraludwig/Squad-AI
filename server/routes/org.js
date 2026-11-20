@@ -24,12 +24,15 @@ export function sendError(res, err) {
 // Envolve rotas assíncronas para que erros cheguem ao tratador.
 export const h = (fn) => (req, res) => fn(req, res).catch((err) => sendError(res, err));
 
+const AVATAR_IDS = Array.from({ length: 8 }, (_, i) => `avatar-${i + 1}`);
+
 const agentView = (a) => ({
   id: a.id,
   name: a.name,
   area: a.area,
   roleDescription: a.role_description,
   status: a.status,
+  avatar: a.avatar || null,
   createdAt: a.created_at,
 });
 
@@ -51,6 +54,10 @@ function validateAgent(body, { partial = false } = {}) {
     if (!AREAS.includes(out.area)) fields.area = 'Escolha a área em que o agente vai atuar.';
   }
   if (!partial || 'roleDescription' in body) out.roleDescription = clean(body.roleDescription, 600);
+  if ('avatar' in body) {
+    if (body.avatar && !AVATAR_IDS.includes(body.avatar)) fields.avatar = 'Escolha um dos avatares da lista.';
+    else out.avatar = body.avatar || null;
+  }
   if ('status' in body) {
     if (!['em_treinamento', 'publicado'].includes(body.status)) fields.status = 'Status inválido.';
     else out.status = body.status;
@@ -71,8 +78,8 @@ export function registerOrgRoutes(app) {
     if (Object.keys(fields).length) return res.status(400).json({ error: 'Revise os campos destacados.', fields });
     await assertCanAddAgent(req.user.orgId);
     const a = await db.get(
-      'INSERT INTO agents (org_id, name, area, role_description, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.user.orgId, out.name, out.area, out.roleDescription, req.user.id],
+      'INSERT INTO agents (org_id, name, area, role_description, avatar, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [req.user.orgId, out.name, out.area, out.roleDescription, out.avatar || AVATAR_IDS[0], req.user.id],
     );
     res.status(201).json({ agent: agentView(a) });
   }));
@@ -91,9 +98,9 @@ export function registerOrgRoutes(app) {
     const { out, fields } = validateAgent(req.body, { partial: true });
     if (Object.keys(fields).length) return res.status(400).json({ error: 'Revise os campos destacados.', fields });
     const a = await db.get(
-      `UPDATE agents SET name = COALESCE($2, name), area = COALESCE($3, area), role_description = COALESCE($4, role_description), status = COALESCE($5, status)
+      `UPDATE agents SET name = COALESCE($2, name), area = COALESCE($3, area), role_description = COALESCE($4, role_description), status = COALESCE($5, status), avatar = COALESCE($6, avatar)
         WHERE id = $1 RETURNING *`,
-      [agent.id, out.name ?? null, out.area ?? null, out.roleDescription ?? null, out.status ?? null],
+      [agent.id, out.name ?? null, out.area ?? null, out.roleDescription ?? null, out.status ?? null, out.avatar ?? null],
     );
     res.json({ agent: agentView(a) });
   }));

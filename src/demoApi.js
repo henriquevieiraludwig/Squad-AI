@@ -85,6 +85,7 @@ const publicAgent = (a) => ({
   area: a.area,
   roleDescription: a.roleDescription,
   status: a.status,
+  avatar: a.avatar || 'avatar-1',
   createdAt: a.createdAt,
 });
 
@@ -165,6 +166,7 @@ export async function demoApi(path, { method = 'GET', body = {} } = {}) {
       area,
       roleDescription,
       status: 'em_treinamento',
+      avatar: clean(body.avatar, 20) || 'avatar-1',
       createdAt: now(),
     };
     s.agents.push(agent);
