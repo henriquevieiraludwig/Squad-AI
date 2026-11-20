@@ -43,7 +43,7 @@ export function createApp() {
   app.get('/api/health', async (_req, res) => {
     try {
       await db.get('SELECT 1 AS ok');
-      res.json({ ok: true, db: db.kind, version: VERSION });
+      res.json({ ok: true, db: db.kind, version: VERSION, ai: Boolean(process.env.ANTHROPIC_API_KEY), email: Boolean(process.env.RESEND_API_KEY) });
     } catch (err) {
       res.status(503).json({ ok: false, error: err.message });
     }
