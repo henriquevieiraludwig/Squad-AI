@@ -447,22 +447,41 @@
 
 /* Plataformas */
 
+/* Carrossel infinito: a faixa tem a lista 3 vezes e anda exatamente uma lista;
+   as bordas somem num degradê, então nunca se vê onde a logo entra ou sai. */
 .platforms {
   --s: 72px;
-  --g: 8px;
+  --g: 16px;
   --step: calc(var(--s) + var(--g));
-  position: relative;
+  width: min(100%, calc(4 * var(--step) + var(--s)));
+  overflow: hidden;
+  padding: 4px 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+
+.platforms-track {
+  display: flex;
+  gap: var(--g);
+  width: max-content;
   list-style: none;
   margin: 0;
   padding: 0;
-  width: calc(var(--s) + 3 * var(--step));
-  height: calc(var(--s) + var(--step));
+  animation: platforms-scroll 12s linear infinite;
+}
+
+.platforms:hover .platforms-track {
+  animation-play-state: paused;
+}
+
+@keyframes platforms-scroll {
+  to {
+    transform: translateX(calc(-4 * var(--step)));
+  }
 }
 
 .platforms li {
-  position: absolute;
-  left: calc(var(--i) * var(--step));
-  top: calc(var(--row) * var(--step));
+  flex: none;
   width: var(--s);
   height: var(--s);
   display: grid;

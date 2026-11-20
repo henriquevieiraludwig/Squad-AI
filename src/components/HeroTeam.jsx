@@ -11,14 +11,14 @@ import person8 from '../assets/hero/person-8.webp';
 // Cada pessoa: centro e raio na arte original (1254 px), a imagem recortada e o papel que ela representa.
 const ORIGINAL = 1254;
 const PEOPLE = [
-  { src: person1, at: [625, 240, 245], role: 'Assistente de atendimento' },
-  { src: person2, at: [945, 370, 132], role: 'Analista financeiro' },
-  { src: person3, at: [1065, 680, 132], role: 'Vendas' },
-  { src: person4, at: [925, 965, 132], role: 'Suporte técnico' },
-  { src: person5, at: [625, 1075, 134], role: 'Analista de dados' },
-  { src: person6, at: [330, 965, 132], role: 'Analista de marketing' },
-  { src: person7, at: [185, 670, 132], role: 'Recursos humanos' },
-  { src: person8, at: [310, 385, 132], role: 'Agendamentos' },
+  { src: person1, at: [625, 240, 250], role: 'Assistente de atendimento' },
+  { src: person2, at: [945, 370, 205], role: 'Analista financeiro' },
+  { src: person3, at: [1065, 680, 205], role: 'Vendas' },
+  { src: person4, at: [925, 965, 205], role: 'Suporte técnico' },
+  { src: person5, at: [625, 1075, 205], role: 'Analista de dados' },
+  { src: person6, at: [330, 965, 205], role: 'Analista de marketing' },
+  { src: person7, at: [185, 670, 215], role: 'Recursos humanos' },
+  { src: person8, at: [310, 385, 205], role: 'Agendamentos' },
 ];
 
 // A arte base fica embaixo. Cada pessoa é recortada por cima, no mesmo lugar, para poder animar só ela.

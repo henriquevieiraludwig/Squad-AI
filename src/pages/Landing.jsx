@@ -168,14 +168,19 @@ export default function Landing() {
                 Cada ação fica registrada.
               </p>
             </div>
-            <ul className="platforms" aria-label="Plataformas compatíveis">
-              {platforms.map((p, i) => (
-                <li key={p.name} className="platform-logo" style={{ '--i': i, '--row': i % 2 }}>
-                  <img src={p.src} alt="" />
-                  <span className="visually-hidden">{p.name}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="platforms" role="region" aria-label="Plataformas compatíveis">
+              <ul className="platforms-track">
+                {/* A lista aparece 3 vezes em sequência para o giro nunca mostrar um buraco; só a primeira é lida. */}
+                {[0, 1, 2].flatMap((copy) =>
+                  platforms.map((p) => (
+                    <li key={`${copy}-${p.name}`} className="platform-logo" aria-hidden={copy > 0 ? 'true' : undefined}>
+                      <img src={p.src} alt="" />
+                      {copy === 0 && <span className="visually-hidden">{p.name}</span>}
+                    </li>
+                  )),
+                )}
+              </ul>
+            </div>
           </div>
         </section>
 
