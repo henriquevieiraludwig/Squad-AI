@@ -2,7 +2,8 @@
 import { request, ConnectorError, PUBLIC_URL } from './http.js';
 
 const P = 'Telegram';
-const api = (token, method, body) => request(`https://api.telegram.org/bot${token}/${method}`, { method: 'POST', body: body || {}, provider: P });
+const BASE = (process.env.TELEGRAM_API_URL || 'https://api.telegram.org').replace(/\/$/, '');
+const api = (token, method, body) => request(`${BASE}/bot${token}/${method}`, { method: 'POST', body: body || {}, provider: P });
 
 export const token = {
   // Valida o token, registra o webhook e devolve o que deve ser guardado.

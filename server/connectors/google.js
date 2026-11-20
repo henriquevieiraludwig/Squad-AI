@@ -1,27 +1,29 @@
 // Google Workspace: Gmail, Agenda, Drive e Google Chat.
 import { request, splitEmails, localDateTime, TIMEZONE, ConnectorError } from './http.js';
 
-const SCOPES = [
+// Escopos sensíveis (verificação simples do Google).
+const BASE_SCOPES = [
   'openid',
   'email',
   'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/calendar.events',
-  'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/chat.spaces.readonly',
   'https://www.googleapis.com/auth/chat.messages.create',
-].join(' ');
+];
+// Escopos restritos: exigem a avaliação de segurança anual (CASA). Só com cfg.restricted.
+const RESTRICTED_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/drive.readonly'];
+const scopes = (cfg) => [...BASE_SCOPES, ...(cfg.restricted ? RESTRICTED_SCOPES : [])].join(' ');
 
 const P = 'Google Workspace';
 
 export const oauth = {
   env: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
-  authorizeUrl(state, redirectUri) {
+  authorizeUrl(cfg, state, redirectUri) {
     const q = new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_id: cfg.clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
-      scope: SCOPES,
+      scope: scopes(cfg),
       access_type: 'offline',
       prompt: 'consent',
       include_granted_scopes: 'true',
@@ -29,27 +31,27 @@ export const oauth = {
     });
     return `https://accounts.google.com/o/oauth2/v2/auth?${q}`;
   },
-  async exchange(code, redirectUri) {
+  async exchange(cfg, code, redirectUri) {
     const t = await request('https://oauth2.googleapis.com/token', {
       method: 'POST',
       provider: P,
       form: {
         code,
-        client_id: process.env.GOOGLE_CLIENT_ID,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        client_id: cfg.clientId,
+        client_secret: cfg.clientSecret,
         redirect_uri: redirectUri,
         grant_type: 'authorization_code',
       },
     });
     return { access_token: t.access_token, refresh_token: t.refresh_token, expires_at: Date.now() + t.expires_in * 1000 };
   },
-  async refresh(creds) {
+  async refresh(cfg, creds) {
     const t = await request('https://oauth2.googleapis.com/token', {
       method: 'POST',
       provider: P,
       form: {
-        client_id: process.env.GOOGLE_CLIENT_ID,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        client_id: cfg.clientId,
+        client_secret: cfg.clientSecret,
         refresh_token: creds.refresh_token,
         grant_type: 'refresh_token',
       },

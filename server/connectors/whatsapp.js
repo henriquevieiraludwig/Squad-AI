@@ -37,6 +37,32 @@ export const actions = {
     const id = await send(creds, to, text);
     return { enviado: true, id };
   },
+
+  async whatsapp_send_template({ creds }, { to, template, language, params }) {
+    const digits = String(to).replace(/\D/g, '');
+    if (digits.length < 10) throw new ConnectorError('Número inválido. Use DDI + DDD + número, só dígitos.');
+    if (!/^[a-z0-9_]+$/.test(template)) throw new ConnectorError('O nome do modelo usa só letras minúsculas, números e _.');
+    const values = String(params || '')
+      .split('|')
+      .map((v) => v.trim())
+      .filter(Boolean);
+    const data = await request(`${GRAPH}/${creds.phoneNumberId}/messages`, {
+      method: 'POST',
+      token: creds.accessToken,
+      provider: P,
+      body: {
+        messaging_product: 'whatsapp',
+        to: digits,
+        type: 'template',
+        template: {
+          name: template,
+          language: { code: language || 'pt_BR' },
+          components: values.length ? [{ type: 'body', parameters: values.map((text) => ({ type: 'text', text })) }] : undefined,
+        },
+      },
+    });
+    return { enviado: true, id: data.messages?.[0]?.id };
+  },
 };
 
 // Confere a assinatura X-Hub-Signature-256 quando a chave secreta do app foi informada.

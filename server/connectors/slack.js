@@ -16,15 +16,15 @@ async function slack(method, token, { body, query } = {}) {
 
 export const oauth = {
   env: ['SLACK_CLIENT_ID', 'SLACK_CLIENT_SECRET'],
-  authorizeUrl(state, redirectUri) {
-    const q = new URLSearchParams({ client_id: process.env.SLACK_CLIENT_ID, scope: BOT_SCOPES, redirect_uri: redirectUri, state });
+  authorizeUrl(cfg, state, redirectUri) {
+    const q = new URLSearchParams({ client_id: cfg.clientId, scope: BOT_SCOPES, redirect_uri: redirectUri, state });
     return `https://slack.com/oauth/v2/authorize?${q}`;
   },
-  async exchange(code, redirectUri) {
+  async exchange(cfg, code, redirectUri) {
     const data = await request('https://slack.com/api/oauth.v2.access', {
       method: 'POST',
       provider: P,
-      form: { client_id: process.env.SLACK_CLIENT_ID, client_secret: process.env.SLACK_CLIENT_SECRET, code, redirect_uri: redirectUri },
+      form: { client_id: cfg.clientId, client_secret: cfg.clientSecret, code, redirect_uri: redirectUri },
     });
     if (!data.ok) throw new ConnectorError(`Slack recusou a conexão: ${data.error}`);
     // Tokens de bot do Slack não expiram (a menos que a rotação esteja ligada no app).

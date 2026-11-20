@@ -1,37 +1,48 @@
-// Execução dos agentes: loop de uso de ferramentas com o Claude, permissões por ação,
-// fila de aprovação humana e registro de tudo o que o agente fez.
+// Execução dos agentes: loop de uso de ferramentas com o Claude, contexto da empresa,
+// permissões por ação, fila de aprovação humana, medição de uso e registro de tudo.
 import Anthropic from '@anthropic-ai/sdk';
-import { db } from '../db.js';
+import { db, json } from '../db.js';
 import { ACTIONS, ACTION_BY_ID, connectionFor } from '../../shared/catalog.js';
-import { executeAction, validateInput, credentialsFor, connectors } from '../connectors/index.js';
+import { executeAction, validateInput, credentialsFor, connectors, featuresFor } from '../connectors/index.js';
+import { partnerById } from '../brand.js';
+import { knowledgeFor } from '../knowledge.js';
+import { assertCanRunAgent, recordUsage } from '../usage.js';
+import { enqueue } from '../jobs.js';
 
 const MODEL = process.env.AGENT_MODEL || 'claude-opus-5-5';
 const MAX_TOOL_ROUNDS = 8;
 const HISTORY_LIMIT = 60;
+const TZ = process.env.DEFAULT_TIMEZONE || 'America/Sao_Paulo';
 
-export class AgentError extends Error {}
+export class AgentError extends Error {
+  constructor(message, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
 
 let client = null;
-function getClient() {
-  if (!client) client = new Anthropic();
-  return client;
-}
+const getClient = () => (client ||= new Anthropic());
 
 // ---------- Ferramentas do agente ----------
 
-export function agentToolModes(agentId) {
-  return Object.fromEntries(db.prepare('SELECT action_id, mode FROM agent_tools WHERE agent_id = ?').all(agentId).map((r) => [r.action_id, r.mode]));
+export async function agentToolModes(agentId) {
+  const rows = await db.all('SELECT action_id, mode FROM agent_tools WHERE agent_id = $1', [agentId]);
+  return Object.fromEntries(rows.map((r) => [r.action_id, r.mode]));
 }
 
-function connectedProviders(orgId) {
-  return new Set(db.prepare('SELECT provider FROM integrations WHERE org_id = ?').all(orgId).map((r) => r.provider));
-}
-
-// Só entram ações ligadas no agente E cuja plataforma está conectada. Ordem fixa do catálogo (ajuda o cache).
-function enabledTools(agent) {
-  const modes = agentToolModes(agent.id);
-  const connected = connectedProviders(agent.org_id);
-  return ACTIONS.filter((a) => modes[a.id] && connected.has(connectionFor(a.provider))).map((a) => ({ action: a, mode: modes[a.id] }));
+async function enabledTools(agent, partner) {
+  const [modes, conns] = await Promise.all([
+    agentToolModes(agent.id),
+    db.all('SELECT provider FROM integrations WHERE org_id = $1', [agent.org_id]),
+  ]);
+  const connected = new Set(conns.map((r) => r.provider));
+  const features = featuresFor(partner);
+  // Ordem fixa do catálogo: mantém o prefixo estável para o cache de prompt.
+  return ACTIONS.filter((a) => modes[a.id] && connected.has(connectionFor(a.provider)) && (!a.requires || features[a.requires])).map((a) => ({
+    action: a,
+    mode: modes[a.id],
+  }));
 }
 
 const CHANNEL_NOTES = {
@@ -40,69 +51,84 @@ const CHANNEL_NOTES = {
   whatsapp: 'Conversa pelo WhatsApp. Escreva em texto simples, sem Markdown, com mensagens curtas.',
 };
 
-function systemPrompt(agent, orgName, channel) {
-  const today = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full', timeZone: process.env.DEFAULT_TIMEZONE || 'America/Sao_Paulo' }).format(new Date());
+function systemPrompt({ agent, orgName, channel, knowledge }) {
+  const today = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full', timeZone: TZ }).format(new Date());
   return `Você é ${agent.name}, agente de IA da empresa ${orgName}, atuando na área de ${agent.area}.
 
 Sua função, nas palavras da equipe: ${agent.role_description || 'ainda não descrita. Ajude dentro da sua área.'}
 
 Responda sempre em português do Brasil, de forma direta e cordial.
+${
+  knowledge
+    ? `
+A equipe ensinou o contexto da empresa e os processos abaixo. Siga os processos à risca e respeite as regras obrigatórias. Quando a resposta vier de um documento ou processo, mencione o título entre colchetes no fim da frase, por exemplo [Política de reembolso]. Se o que foi ensinado não cobre o pedido, diga isso em vez de supor.
 
+${knowledge}
+`
+    : ''
+}
 Você pode agir nas plataformas da empresa pelas ferramentas disponíveis. Algumas ações passam por aprovação de uma pessoa da equipe antes de serem executadas. Quando uma ferramenta disser que a ação está aguardando aprovação, avise que o pedido foi registrado e será confirmado pela equipe; não diga que a ação já foi feita. Só afirme que algo foi feito quando a ferramenta confirmar.
 
 Antes de enviar algo em nome da empresa (e-mails, mensagens, convites), confirme com a pessoa os dados que faltarem em vez de supor destinatários, horários ou conteúdo. Se nenhuma ferramenta disponível resolve o pedido, diga isso com clareza.
 
 Canal: ${CHANNEL_NOTES[channel] || channel}
-Hoje é ${today}. Fuso horário: ${process.env.DEFAULT_TIMEZONE || 'America/Sao_Paulo'}.`;
+Hoje é ${today}. Fuso horário: ${TZ}.`;
 }
 
 // ---------- Histórico ----------
 
-function loadHistory(conversationId) {
-  const rows = db.prepare('SELECT role, content_json FROM messages WHERE conversation_id = ? ORDER BY id').all(conversationId);
+async function loadHistory(conversationId) {
+  const rows = await db.all('SELECT role, content FROM messages WHERE conversation_id = $1 ORDER BY id', [conversationId]);
   let start = Math.max(0, rows.length - HISTORY_LIMIT);
-  // O recorte precisa começar numa mensagem do usuário com texto (não num tool_result),
-  // senão a API recusa pares de ferramenta incompletos.
+  // O recorte precisa começar numa mensagem do usuário com texto (não num tool_result).
   while (start < rows.length) {
     const r = rows[start];
-    const content = JSON.parse(r.content_json);
-    const isToolResult = Array.isArray(content) && content.some((b) => b.type === 'tool_result');
+    const isToolResult = Array.isArray(r.content) && r.content.some((b) => b.type === 'tool_result');
     if (r.role === 'user' && !isToolResult) break;
     start++;
   }
-  return rows.slice(start).map((r) => ({ role: r.role, content: JSON.parse(r.content_json) }));
+  // Mensagens seguidas do mesmo papel (ex.: resposta humana após resposta do agente) são unidas.
+  const out = [];
+  for (const r of rows.slice(start)) {
+    const prev = out[out.length - 1];
+    if (prev && prev.role === r.role && r.role !== 'system') {
+      const toBlocks = (c) => (typeof c === 'string' ? [{ type: 'text', text: c }] : c);
+      prev.content = [...toBlocks(prev.content), ...toBlocks(r.content)];
+    } else out.push({ role: r.role, content: r.content });
+  }
+  return out;
 }
 
-function append(conversationId, role, content) {
-  db.prepare('INSERT INTO messages (conversation_id, role, content_json) VALUES (?, ?, ?)').run(conversationId, role, JSON.stringify(content));
+export async function appendMessage(conversationId, role, content, author) {
+  await db.run('INSERT INTO messages (conversation_id, role, author, content) VALUES ($1, $2, $3, $4)', [conversationId, role, author, json(content)]);
+  await db.run('UPDATE conversations SET last_message_at = now() WHERE id = $1', [conversationId]);
 }
 
-// Decisões de aprovação ainda não comunicadas ao agente viram uma mensagem de sistema no próximo turno.
-function pendingDecisionNote(conversationId) {
-  const runs = db
-    .prepare(`SELECT id, action_id, status, result_json FROM action_runs WHERE conversation_id = ? AND notified = 0 AND status != 'pendente'`)
-    .all(conversationId);
+async function pendingDecisionNote(conversationId) {
+  const runs = await db.all(
+    `UPDATE action_runs SET notified = true WHERE conversation_id = $1 AND notified = false AND status != 'pendente'
+     RETURNING id, action_id, status, result`,
+    [conversationId],
+  );
   if (!runs.length) return null;
-  db.prepare(`UPDATE action_runs SET notified = 1 WHERE conversation_id = ? AND notified = 0 AND status != 'pendente'`).run(conversationId);
   const lines = runs.map((r) => {
     const label = ACTION_BY_ID[r.action_id]?.label || r.action_id;
-    if (r.status === 'executada') return `Pedido #${r.id} (${label}) foi aprovado e executado. Resultado: ${r.result_json}`;
+    if (r.status === 'executada') return `Pedido #${r.id} (${label}) foi aprovado e executado. Resultado: ${JSON.stringify(r.result)}`;
     if (r.status === 'recusada') return `Pedido #${r.id} (${label}) foi recusado pela equipe e não foi executado.`;
-    return `Pedido #${r.id} (${label}) foi aprovado, mas falhou ao executar: ${r.result_json}`;
+    return `Pedido #${r.id} (${label}) foi aprovado, mas falhou ao executar: ${JSON.stringify(r.result)}`;
   });
   return `Atualização das aprovações desde a última mensagem:\n${lines.join('\n')}`;
 }
 
 // ---------- Registro de ações ----------
 
-function recordRun({ orgId, agentId, conversationId, actionId, input, status, result, notified = 1 }) {
-  const r = db
-    .prepare(
-      `INSERT INTO action_runs (org_id, agent_id, conversation_id, action_id, input_json, status, result_json, notified)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(orgId, agentId, conversationId, actionId, JSON.stringify(input), status, result == null ? null : JSON.stringify(result), notified);
-  return Number(r.lastInsertRowid);
+async function recordRun({ orgId, agentId, conversationId, actionId, input, status, result, notified = true }) {
+  const r = await db.get(
+    `INSERT INTO action_runs (org_id, agent_id, conversation_id, action_id, input, status, result, notified)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+    [orgId, agentId, conversationId, actionId, json(input), status, result == null ? null : json(result), notified],
+  );
+  return r.id;
 }
 
 async function runTool(ctx, block, toolsByName) {
@@ -116,25 +142,23 @@ async function runTool(ctx, block, toolsByName) {
   const common = { orgId: ctx.orgId, agentId: ctx.agentId, conversationId: ctx.conversationId, actionId: entry.action.id, input: block.input };
 
   if (entry.mode === 'approval') {
-    const id = recordRun({ ...common, status: 'pendente', notified: 0 });
+    const id = await recordRun({ ...common, status: 'pendente', notified: false });
+    await enqueue('aviso_aprovacao', { runId: id });
     return {
       run: { id, actionId: entry.action.id, label: entry.action.label, status: 'pendente', input: block.input },
-      result: {
-        ...base,
-        content: `Pedido #${id} registrado e aguardando aprovação de uma pessoa da equipe. A ação ainda não foi executada.`,
-      },
+      result: { ...base, content: `Pedido #${id} registrado e aguardando aprovação de uma pessoa da equipe. A ação ainda não foi executada.` },
     };
   }
 
   try {
     const output = await executeAction(ctx.orgId, entry.action.id, block.input);
-    const id = recordRun({ ...common, status: 'executada', result: output });
+    const id = await recordRun({ ...common, status: 'executada', result: output });
     return {
       run: { id, actionId: entry.action.id, label: entry.action.label, status: 'executada', input: block.input },
       result: { ...base, content: JSON.stringify(output) },
     };
   } catch (err) {
-    const id = recordRun({ ...common, status: 'erro', result: { erro: err.message } });
+    const id = await recordRun({ ...common, status: 'erro', result: { erro: err.message } });
     return {
       run: { id, actionId: entry.action.id, label: entry.action.label, status: 'erro', input: block.input, error: err.message },
       result: { ...base, is_error: true, content: err.message },
@@ -149,21 +173,12 @@ async function callModel(params) {
     return await getClient().beta.messages.create(params);
   } catch (err) {
     if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
-      throw new AgentError('A chave da API do Claude configurada na plataforma foi recusada. Verifique ANTHROPIC_API_KEY.');
+      throw new AgentError('A chave da API do Claude configurada na plataforma foi recusada. Verifique ANTHROPIC_API_KEY.', 503);
     }
-    if (err instanceof Anthropic.RateLimitError) {
-      throw new AgentError('O limite de uso da API do Claude foi atingido. Tente de novo em alguns instantes.');
-    }
-    if (err instanceof Anthropic.APIConnectionError) {
-      throw new AgentError('Não foi possível falar com a API do Claude. Verifique a conexão do servidor.');
-    }
-    if (err instanceof Anthropic.APIError) {
-      throw new AgentError(`A API do Claude retornou um erro (${err.status}): ${err.message}`);
-    }
-    // Sem credencial nenhuma, o SDK falha antes de enviar a requisição.
-    if (!process.env.ANTHROPIC_API_KEY) {
-      throw new AgentError('A plataforma ainda não tem uma chave da API do Claude. Defina ANTHROPIC_API_KEY no servidor.');
-    }
+    if (err instanceof Anthropic.RateLimitError) throw new AgentError('O limite de uso da API do Claude foi atingido. Tente de novo em alguns instantes.', 503);
+    if (err instanceof Anthropic.APIConnectionError) throw new AgentError('Não foi possível falar com a API do Claude. Verifique a conexão do servidor.', 503);
+    if (err instanceof Anthropic.APIError) throw new AgentError(`A API do Claude retornou um erro (${err.status}): ${err.message}`, 502);
+    if (!process.env.ANTHROPIC_API_KEY) throw new AgentError('A plataforma ainda não tem uma chave da API do Claude. Defina ANTHROPIC_API_KEY no servidor.', 503);
     throw err;
   }
 }
@@ -175,39 +190,42 @@ const textOf = (content) =>
     .join('\n')
     .trim();
 
-async function runAgentUnlocked({ orgId, agentId, conversationId, text }) {
-  const agent = db.prepare('SELECT * FROM agents WHERE id = ? AND org_id = ?').get(agentId, orgId);
-  if (!agent) throw new AgentError('Agente não encontrado.');
-  const org = db.prepare('SELECT name FROM organizations WHERE id = ?').get(orgId);
-  const conv = db.prepare('SELECT channel FROM conversations WHERE id = ?').get(conversationId);
+async function runAgentUnlocked({ orgId, agentId, conversationId, text, author = 'contato' }) {
+  const agent = await db.get('SELECT * FROM agents WHERE id = $1 AND org_id = $2', [agentId, orgId]);
+  if (!agent) throw new AgentError('Agente não encontrado.', 404);
+  await assertCanRunAgent(orgId);
+  const org = await db.get('SELECT name, partner_id FROM organizations WHERE id = $1', [orgId]);
+  const partner = await partnerById(org.partner_id);
+  const conv = await db.get('SELECT channel FROM conversations WHERE id = $1', [conversationId]);
 
-  const tools = enabledTools(agent);
+  const [tools, knowledge] = await Promise.all([enabledTools(agent, partner), knowledgeFor(orgId, agentId)]);
   const toolsByName = Object.fromEntries(tools.map((t) => [t.action.id, t]));
   const toolDefs = tools.map(({ action, mode }) => ({
     name: action.id,
     description: action.description + (mode === 'approval' ? ' Esta ação passa por aprovação humana antes de ser executada.' : ''),
     input_schema: action.input_schema,
   }));
+  const system = systemPrompt({ agent, orgName: org.name, channel: conv.channel, knowledge });
 
-  const messages = loadHistory(conversationId);
-  const userMsg = { role: 'user', content: text };
-  messages.push(userMsg);
-  append(conversationId, 'user', text);
-  const note = pendingDecisionNote(conversationId);
+  const messages = await loadHistory(conversationId);
+  messages.push({ role: 'user', content: text });
+  await appendMessage(conversationId, 'user', text, author);
+  const note = await pendingDecisionNote(conversationId);
   if (note) {
     messages.push({ role: 'system', content: note });
-    append(conversationId, 'system', note);
+    await appendMessage(conversationId, 'system', note, 'sistema');
   }
 
   const ctx = { orgId, agentId, conversationId };
   const runs = [];
+  const totals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
   let reply = '';
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const response = await callModel({
       model: MODEL,
       max_tokens: 16000,
-      system: systemPrompt(agent, org.name, conv.channel),
+      system,
       tools: toolDefs.length ? toolDefs : undefined,
       messages,
       output_config: { effort: 'medium' },
@@ -215,10 +233,15 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text }) {
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
     });
+    const u = response.usage || {};
+    totals.input += u.input_tokens || 0;
+    totals.output += u.output_tokens || 0;
+    totals.cacheRead += u.cache_read_input_tokens || 0;
+    totals.cacheWrite += u.cache_creation_input_tokens || 0;
 
     // O conteúdo volta para o histórico exatamente como veio (inclui blocos de raciocínio).
     messages.push({ role: 'assistant', content: response.content });
-    append(conversationId, 'assistant', response.content);
+    await appendMessage(conversationId, 'assistant', response.content, 'agente');
 
     if (response.stop_reason === 'refusal') {
       reply = textOf(response.content) || 'Não posso ajudar com esse pedido.';
@@ -242,31 +265,30 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text }) {
       results.push(result);
       if (run) runs.push(run);
     }
-    // Todos os resultados vão juntos em uma única mensagem do usuário.
-    const toolMsg = { role: 'user', content: results };
-    messages.push(toolMsg);
-    append(conversationId, 'user', results);
+    messages.push({ role: 'user', content: results });
+    await appendMessage(conversationId, 'user', results, 'ferramenta');
 
     if (round === MAX_TOOL_ROUNDS - 1) reply = 'Precisei de etapas demais para concluir. Pode detalhar melhor o pedido?';
   }
 
+  await recordUsage({ orgId, agentId, conversationId, channel: conv.channel, model: MODEL, totals });
   return { reply: reply || 'Pronto.', actions: runs };
 }
 
-// Uma conversa processa uma mensagem por vez, para o histórico não se misturar.
 const locks = new Map();
 
-// Se o turno falhar, desfaz o que foi gravado nele para o histórico não ficar com um turno pela metade.
+// Se o turno falhar, desfaz o que foi gravado nele para o histórico não ficar pela metade.
 async function runAgentSafely(args) {
-  const { last } = db.prepare('SELECT COALESCE(MAX(id), 0) AS last FROM messages WHERE conversation_id = ?').get(args.conversationId);
+  const { last } = await db.get('SELECT COALESCE(MAX(id), 0)::int AS last FROM messages WHERE conversation_id = $1', [args.conversationId]);
   try {
     return await runAgentUnlocked(args);
   } catch (err) {
-    db.prepare('DELETE FROM messages WHERE conversation_id = ? AND id > ?').run(args.conversationId, last);
+    await db.run('DELETE FROM messages WHERE conversation_id = $1 AND id > $2', [args.conversationId, last]);
     throw err;
   }
 }
 
+// Uma conversa processa uma mensagem por vez, para o histórico não se misturar.
 export function runAgent(args) {
   const prev = locks.get(args.conversationId) || Promise.resolve();
   const next = prev.catch(() => {}).then(() => runAgentSafely(args));
@@ -275,36 +297,47 @@ export function runAgent(args) {
     .finally(() => {
       if (locks.get(args.conversationId) === next) locks.delete(args.conversationId);
     })
-    .catch(() => {}); // o erro é tratado por quem chamou runAgent
+    .catch(() => {});
   return next;
 }
 
 // ---------- Conversas ----------
 
-export function findOrCreateConversation({ orgId, agentId, channel, externalId = null, contact = '' }) {
+export async function findOrCreateConversation({ orgId, agentId, channel, externalId = null, contact = '' }) {
   if (externalId) {
-    const existing = db
-      .prepare('SELECT id, agent_id FROM conversations WHERE org_id = ? AND channel = ? AND external_id = ? ORDER BY id DESC LIMIT 1')
-      .get(orgId, channel, externalId);
+    const existing = await db.get(
+      'SELECT id, agent_id FROM conversations WHERE org_id = $1 AND channel = $2 AND external_id = $3 ORDER BY id DESC LIMIT 1',
+      [orgId, channel, externalId],
+    );
     if (existing && existing.agent_id === agentId) return existing.id;
   }
-  const r = db
-    .prepare('INSERT INTO conversations (org_id, agent_id, channel, external_id, contact_label) VALUES (?, ?, ?, ?, ?)')
-    .run(orgId, agentId, channel, externalId, contact);
-  return Number(r.lastInsertRowid);
+  const r = await db.get(
+    'INSERT INTO conversations (org_id, agent_id, channel, external_id, contact_label) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+    [orgId, agentId, channel, externalId, contact],
+  );
+  return r.id;
 }
 
-// Mensagem que chegou por um canal (Telegram, WhatsApp): roteia para o agente e responde no mesmo canal.
+// Mensagem que chegou por um canal (Telegram, WhatsApp). Roda pela fila de tarefas.
 export async function handleInbound(integration, provider, { externalId, contact, text }) {
-  const route = db.prepare('SELECT agent_id FROM channel_routes WHERE org_id = ? AND provider = ?').get(integration.org_id, provider);
+  const route = await db.get('SELECT agent_id FROM channel_routes WHERE org_id = $1 AND provider = $2', [integration.org_id, provider]);
   if (!route) return; // nenhum agente atende este canal ainda
-  const conversationId = findOrCreateConversation({ orgId: integration.org_id, agentId: route.agent_id, channel: provider, externalId, contact });
+  const conversationId = await findOrCreateConversation({ orgId: integration.org_id, agentId: route.agent_id, channel: provider, externalId, contact });
+  const conv = await db.get('SELECT handled_by FROM conversations WHERE id = $1', [conversationId]);
+
+  // Uma pessoa da equipe assumiu: só registra a mensagem, o agente não responde.
+  if (conv.handled_by === 'humano') {
+    await appendMessage(conversationId, 'user', text, 'contato');
+    return;
+  }
+
   const creds = await credentialsFor(integration.org_id, provider);
   let reply;
   try {
     ({ reply } = await runAgent({ orgId: integration.org_id, agentId: route.agent_id, conversationId, text }));
   } catch (err) {
     console.error(`[${provider}] falha ao responder:`, err.message);
+    await appendMessage(conversationId, 'user', text, 'contato');
     reply = 'Não consegui responder agora. Uma pessoa da equipe vai retornar em breve.';
   }
   await connectors[provider].reply(creds, externalId, reply);
@@ -313,38 +346,40 @@ export async function handleInbound(integration, provider, { externalId, contact
 // ---------- Aprovações ----------
 
 export async function decideRun({ orgId, runId, userId, approve }) {
-  const run = db.prepare(`SELECT * FROM action_runs WHERE id = ? AND org_id = ?`).get(runId, orgId);
-  if (!run) throw new AgentError('Pedido não encontrado.');
-  if (run.status !== 'pendente') throw new AgentError('Este pedido já foi decidido.');
+  const run = await db.get(`SELECT * FROM action_runs WHERE id = $1 AND org_id = $2`, [runId, orgId]);
+  if (!run) throw new AgentError('Pedido não encontrado.', 404);
+  if (run.status !== 'pendente') throw new AgentError('Este pedido já foi decidido.', 409);
+
+  // Marca como decidido antes de executar, para dois cliques simultâneos não executarem duas vezes.
+  const claimed = await db.get(
+    `UPDATE action_runs SET status = 'executada', decided_by = $2, decided_at = now() WHERE id = $1 AND status = 'pendente' RETURNING id`,
+    [runId, userId],
+  );
+  if (!claimed) throw new AgentError('Este pedido já foi decidido.', 409);
 
   let status = 'recusada';
   let result = null;
   if (approve) {
     try {
-      result = await executeAction(orgId, run.action_id, JSON.parse(run.input_json));
+      result = await executeAction(orgId, run.action_id, run.input);
       status = 'executada';
     } catch (err) {
       status = 'erro';
       result = { erro: err.message };
     }
   }
-  db.prepare(
-    `UPDATE action_runs SET status = ?, result_json = ?, decided_by = ?, decided_at = datetime('now'), notified = 0 WHERE id = ?`,
-  ).run(status, result == null ? null : JSON.stringify(result), userId, runId);
+  await db.run(`UPDATE action_runs SET status = $2, result = $3, notified = false WHERE id = $1`, [runId, status, result == null ? null : json(result)]);
 
-  // Em canais externos, avisa o contato sobre a decisão.
-  const conv = run.conversation_id && db.prepare('SELECT channel, external_id FROM conversations WHERE id = ?').get(run.conversation_id);
+  const conv = run.conversation_id && (await db.get('SELECT channel, external_id FROM conversations WHERE id = $1', [run.conversation_id]));
   if (conv?.external_id && connectors[conv.channel]?.reply) {
     const label = ACTION_BY_ID[run.action_id]?.label?.toLowerCase() || 'ação';
-    const msg =
+    const text =
       status === 'executada'
         ? `Atualização: seu pedido (${label}) foi aprovado e concluído.`
         : status === 'recusada'
           ? `Atualização: a equipe não aprovou o pedido (${label}). Se precisar, fale com a gente por aqui.`
           : `Atualização: o pedido (${label}) foi aprovado, mas houve uma falha ao executar. A equipe vai verificar.`;
-    credentialsFor(orgId, conv.channel)
-      .then((creds) => connectors[conv.channel].reply(creds, conv.external_id, msg))
-      .catch((err) => console.error('falha ao avisar o contato:', err.message));
+    await enqueue('aviso_contato', { orgId, conversationId: run.conversation_id, text });
   }
   return { status, result };
 }

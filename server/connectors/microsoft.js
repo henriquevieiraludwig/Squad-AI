@@ -1,8 +1,7 @@
 // Microsoft 365 via Microsoft Graph: Outlook, Calendário, Teams e OneDrive.
 import { request, splitEmails, localDateTime, TIMEZONE, ConnectorError } from './http.js';
 
-const TENANT = process.env.MICROSOFT_TENANT || 'common';
-const AUTH_BASE = `https://login.microsoftonline.com/${TENANT}/oauth2/v2.0`;
+const authBase = (cfg) => `https://login.microsoftonline.com/${cfg.tenant || 'common'}/oauth2/v2.0`;
 const GRAPH = 'https://graph.microsoft.com/v1.0';
 const SCOPES = [
   'offline_access',
@@ -24,9 +23,9 @@ function toCreds(t) {
 
 export const oauth = {
   env: ['MICROSOFT_CLIENT_ID', 'MICROSOFT_CLIENT_SECRET'],
-  authorizeUrl(state, redirectUri) {
+  authorizeUrl(cfg, state, redirectUri) {
     const q = new URLSearchParams({
-      client_id: process.env.MICROSOFT_CLIENT_ID,
+      client_id: cfg.clientId,
       response_type: 'code',
       redirect_uri: redirectUri,
       response_mode: 'query',
@@ -34,15 +33,15 @@ export const oauth = {
       state,
       prompt: 'select_account',
     });
-    return `${AUTH_BASE}/authorize?${q}`;
+    return `${authBase(cfg)}/authorize?${q}`;
   },
-  async exchange(code, redirectUri) {
-    const t = await request(`${AUTH_BASE}/token`, {
+  async exchange(cfg, code, redirectUri) {
+    const t = await request(`${authBase(cfg)}/token`, {
       method: 'POST',
       provider: P,
       form: {
-        client_id: process.env.MICROSOFT_CLIENT_ID,
-        client_secret: process.env.MICROSOFT_CLIENT_SECRET,
+        client_id: cfg.clientId,
+        client_secret: cfg.clientSecret,
         grant_type: 'authorization_code',
         code,
         redirect_uri: redirectUri,
@@ -51,13 +50,13 @@ export const oauth = {
     });
     return toCreds(t);
   },
-  async refresh(creds) {
-    const t = await request(`${AUTH_BASE}/token`, {
+  async refresh(cfg, creds) {
+    const t = await request(`${authBase(cfg)}/token`, {
       method: 'POST',
       provider: P,
       form: {
-        client_id: process.env.MICROSOFT_CLIENT_ID,
-        client_secret: process.env.MICROSOFT_CLIENT_SECRET,
+        client_id: cfg.clientId,
+        client_secret: cfg.clientSecret,
         grant_type: 'refresh_token',
         refresh_token: creds.refresh_token,
         scope: SCOPES,

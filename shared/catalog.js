@@ -19,6 +19,7 @@ export const PROVIDERS = [
     monogram: 'G',
     summary: 'Gmail, Agenda, Drive e Google Chat da conta Google da empresa.',
     services: ['Gmail', 'Agenda', 'Drive', 'Google Chat'],
+    note: 'Buscar e-mails e arquivos exige escopos restritos do Google, que pedem uma auditoria de segurança anual. Ficam desligados até essa verificação.',
   },
   {
     id: 'whatsapp',
@@ -181,6 +182,7 @@ export const ACTIONS = [
     service: 'Gmail',
     label: 'Buscar e-mails',
     risk: 'read',
+    requires: 'google_restricted',
     description: 'Busca e-mails no Gmail usando a sintaxe de busca do Gmail (ex.: from:cliente@x.com pedido). Retorna até 10 resultados.',
     input_schema: obj({ query: str('Consulta no formato de busca do Gmail') }, ['query']),
   },
@@ -217,6 +219,7 @@ export const ACTIONS = [
     service: 'Drive',
     label: 'Buscar arquivos no Drive',
     risk: 'read',
+    requires: 'google_restricted',
     description: 'Busca arquivos no Google Drive pelo conteúdo ou nome. Retorna nome, tipo e link.',
     input_schema: obj({ query: str('Termos de busca') }, ['query']),
   },
@@ -268,6 +271,23 @@ export const ACTIONS = [
     input_schema: obj({ to: str('Número com DDI e DDD, só dígitos. Ex.: 5511999998888'), text: str('Texto da mensagem') }, ['to', 'text']),
   },
   {
+    id: 'whatsapp_send_template',
+    provider: 'whatsapp',
+    service: 'Mensagens',
+    label: 'Enviar modelo aprovado no WhatsApp',
+    risk: 'write',
+    description: 'Envia um modelo de mensagem aprovado pela Meta. Use para falar com contatos fora da janela de 24 horas, como lembretes e avisos.',
+    input_schema: obj(
+      {
+        to: str('Número com DDI e DDD, só dígitos. Ex.: 5511999998888'),
+        template: str('Nome do modelo aprovado no WhatsApp Manager, ex.: lembrete_reembolso'),
+        language: str('Código do idioma do modelo, ex.: pt_BR'),
+        params: str('Valores das variáveis do modelo, em ordem, separados por | (barra vertical). Vazio se não houver.'),
+      },
+      ['to', 'template', 'language', 'params'],
+    ),
+  },
+  {
     id: 'telegram_send_message',
     provider: 'telegram',
     service: 'Mensagens',
@@ -286,6 +306,9 @@ export const connectionFor = (providerId) => PROVIDER_BY_ID[providerId]?.via || 
 
 // Modo padrão ao ligar uma ação: leitura roda sozinha, escrita pede aprovação.
 export const defaultMode = (action) => (action.risk === 'read' ? 'auto' : 'approval');
+
+// Ações disponíveis conforme os recursos liberados (ex.: escopos restritos do Google).
+export const availableActions = (features = {}) => ACTIONS.filter((a) => !a.requires || features[a.requires]);
 
 export const MODES = {
   off: 'Desligada',
