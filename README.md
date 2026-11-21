@@ -99,7 +99,8 @@ test/                 testes de ponta a ponta
 O administrador de TI de cada cliente precisa aprovar `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `Files.Read.All` e `Sites.Read.All`.
 
 **Google Cloud** (tela de consentimento OAuth):
-- Escopos usados por padrão: `openid`, `email`, `gmail.send`, `calendar.events`, `chat.spaces.readonly`, `chat.messages.create`, `drive.file`.
+- Escopos usados por padrão: `openid`, `email`, `gmail.send`, `calendar.events`, `chat.spaces.readonly`, `chat.messages.create`, `drive.file`, `spreadsheets`, `documents`, `presentations`, `forms.body`, `forms.responses.readonly`.
+- APIs a ativar no projeto do Google Cloud: Gmail, Google Calendar, Google Drive, Google Chat, Google Sheets, Google Docs, Google Slides e Google Forms.
 - Escopos restritos, só depois da avaliação de segurança anual: `gmail.readonly`, `drive.readonly`. Eles liberam buscar e responder e-mails e buscar arquivos.
 
 | Serviço | Ações do agente |
@@ -107,9 +108,13 @@ O administrador de TI de cada cliente precisa aprovar `Team.ReadBasic.All`, `Cha
 | Outlook | Enviar, buscar e responder e-mails; criar e listar eventos |
 | Teams | Listar canais, publicar em canal, mensagem direta (1:1) |
 | OneDrive e SharePoint | Buscar arquivos (OneDrive e todos os sites), salvar arquivo de texto |
-| Gmail e Agenda | Enviar, buscar e responder e-mails; criar e listar eventos |
+| Gmail e Agenda | Enviar, buscar e responder e-mails; criar e listar eventos com link do Meet |
 | Drive | Criar documento; buscar arquivos (escopo restrito) |
 | Google Chat | Listar espaços e enviar mensagem |
+| Planilhas | Criar, ler, adicionar linhas e atualizar células |
+| Documentos | Criar, ler e acrescentar texto |
+| Apresentações | Criar (um slide por bloco) e ler |
+| Formulários | Criar (perguntas abertas, múltipla escolha, obrigatórias) e ver respostas |
 
 ## Segurança e LGPD
 

@@ -438,13 +438,24 @@ async function integrationRoutes(s, method, path, body) {
       else tools[body.actionId] = body.mode;
       return { ok: true, tools };
     }
+    if (m[2] === '/chat' && method === 'GET') {
+      const conv = [...s.conversations].reverse().find((c) => c.agentId === agent.id && c.userId === u.id && c.channel !== 'whatsapp');
+      if (!conv) return { conversationId: null, messages: [] };
+      return {
+        conversationId: conv.id,
+        messages: (conv.messages || []).map((x) => ({ id: x.id, role: x.author === 'contato' ? 'user' : 'agent', text: x.text })),
+      };
+    }
     if (m[2] === '/chat' && method === 'POST') {
       const text = clean(body.message, 4000);
       if (!text) throw new ApiError('Escreva uma mensagem.', 400);
       let conversationId = Number(body.conversationId) || null;
+      if (!conversationId && !body.newConversation) {
+        conversationId = [...s.conversations].reverse().find((c) => c.agentId === agent.id && c.userId === u.id)?.id || null;
+      }
       if (!conversationId) {
         conversationId = nextId();
-        s.conversations.push({ id: conversationId, orgId: u.orgId, agentId: agent.id });
+        s.conversations.push({ id: conversationId, orgId: u.orgId, agentId: agent.id, userId: u.id });
       }
       await new Promise((r) => setTimeout(r, 700));
       const out = simulateChat(s, u, agent, text);
@@ -455,6 +466,7 @@ async function integrationRoutes(s, method, path, body) {
         conv.lastMessageAt = now();
         conv.contact = u.name;
       }
+      save();
       return { conversationId, ...out };
     }
   }

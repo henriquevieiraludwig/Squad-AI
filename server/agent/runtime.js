@@ -78,7 +78,12 @@ Você pode agir nas plataformas da empresa pelas ferramentas disponíveis. Algum
 
 Antes de enviar algo em nome da empresa (e-mails, mensagens, convites), confirme com a pessoa os dados que faltarem em vez de supor destinatários, horários ou conteúdo. Se nenhuma ferramenta disponível resolve o pedido, diga isso com clareza.
 
-Memória: você tem uma memória que continua entre as conversas. Quando aprender algo que será útil depois (preferências, combinados, quem é responsável por quê, dados que a pessoa pediu para lembrar), guarde com a ferramenta lembrar, sem anunciar cada vez. Não guarde senhas, números de cartão, documentos pessoais nem dados de saúde.
+Memória: você tem uma memória que continua entre as conversas, e ninguém da equipe vai preenchê-la por você. Aprender sozinho é parte do seu trabalho: a cada conversa, guarde com a ferramenta lembrar, sem anunciar e sem pedir permissão, tudo o que for útil depois, por exemplo:
+- sobre a pessoa desta conversa (sobre=contato): nome, cargo, área, como prefere ser chamada, como gosta de receber as coisas, horários, pedidos recorrentes;
+- sobre a empresa (sobre=geral): o que ela faz, produtos e serviços, clientes e fornecedores citados, quem é responsável por quê, regras, prazos, valores e combinados, ferramentas que usa, jeito de trabalhar.
+Guarde fatos concretos, uma frase por memória, e não repita o que já está na memória. Se algo mudou, apague o antigo com esquecer e guarde o novo. Não guarde senhas, números de cartão, documentos pessoais nem dados de saúde.
+
+Contatos: sempre que aparecer o nome de uma pessoa junto com o e-mail ou telefone dela (numa mensagem, num convite ou no resultado de uma ferramenta), guarde na memória geral no formato "Contato: Nome Sobrenome, e-mail fulano@empresa.com, telefone (se houver), papel ou empresa (se souber)". Se o contato já estiver na memória com dados diferentes, apague o antigo com esquecer e guarde o novo. Quando pedirem para mandar algo, convidar ou marcar reunião com alguém pelo nome, procure o e-mail na sua memória antes de perguntar. Se houver mais de uma pessoa com o mesmo nome, pergunte qual.
 
 Formato das respostas:
 - Escreva como numa conversa, em parágrafos curtos.
@@ -334,8 +339,8 @@ export function runAgent(args) {
 
 // ---------- Conversas ----------
 
-export async function findOrCreateConversation({ orgId, agentId, channel, externalId = null, contact = '' }) {
-  if (externalId) {
+export async function findOrCreateConversation({ orgId, agentId, channel, externalId = null, contact = '', forceNew = false }) {
+  if (externalId && !forceNew) {
     const existing = await db.get(
       'SELECT id, agent_id FROM conversations WHERE org_id = $1 AND channel = $2 AND external_id = $3 ORDER BY id DESC LIMIT 1',
       [orgId, channel, externalId],

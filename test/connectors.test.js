@@ -2,7 +2,7 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { actions as ms } from '../server/connectors/microsoft.js';
-import { actions as google } from '../server/connectors/google.js';
+import { actions as google, fileIdOf } from '../server/connectors/google.js';
 
 let calls;
 let replies;
@@ -112,5 +112,76 @@ describe('Google Workspace', () => {
     assert.match(mime, /Subject: Re: Proposta/);
     assert.match(mime, /In-Reply-To: <abc@x>/);
     assert.equal(r.respondido, true);
+  });
+});
+
+describe('Google Planilhas, Documentos, Apresentações e Formulários', () => {
+  const SHEET = 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOp/edit#gid=0';
+
+  it('aceita link ou ID do arquivo', () => {
+    assert.equal(fileIdOf(SHEET), '1AbCdEfGhIjKlMnOp');
+    assert.equal(fileIdOf('1AbCdEfGhIjKlMnOp'), '1AbCdEfGhIjKlMnOp');
+    assert.throws(() => fileIdOf('planilha'));
+  });
+
+  it('cria planilha com cabeçalho e adiciona linhas', async () => {
+    replies = [{ spreadsheetId: 'S1', spreadsheetUrl: 'https://sheets/S1' }, {}];
+    const r = await google.sheets_create(ctx, { title: 'Leads', columns: 'Nome | E-mail | Data' });
+    assert.equal(r.link, 'https://sheets/S1');
+    assert.deepEqual(JSON.parse(calls[1].body).values, [['Nome', 'E-mail', 'Data']]);
+
+    calls = [];
+    replies = [{ updates: { updatedRange: 'Leads!A2:C3' } }];
+    await google.sheets_append_rows(ctx, { spreadsheet: SHEET, rows: 'Ana | ana@x.com | 25/11\nBruno | b@x.com | 26/11', sheet: 'Leads' });
+    assert.match(calls[0].url, /1AbCdEfGhIjKlMnOp\/values\/'Leads'!A1:append\?valueInputOption=USER_ENTERED/);
+    assert.deepEqual(JSON.parse(calls[0].body).values, [['Ana', 'ana@x.com', '25/11'], ['Bruno', 'b@x.com', '26/11']]);
+  });
+
+  it('lê planilha', async () => {
+    replies = [{ range: 'Página1!A1:B2', values: [['a', 'b'], ['c', 'd']] }];
+    const r = await google.sheets_read(ctx, { spreadsheet: SHEET, range: '' });
+    assert.match(calls[0].url, /values\/A1%3AZ200$/);
+    assert.equal(r.linhas, 2);
+  });
+
+  it('lê e acrescenta texto no Google Docs', async () => {
+    replies = [{ title: 'Ata', body: { content: [{ paragraph: { elements: [{ textRun: { content: 'Pauta\n' } }] } }] } }];
+    const r = await google.docs_read(ctx, { document: 'https://docs.google.com/document/d/1DocDocDocDoc/edit' });
+    assert.equal(r.texto, 'Pauta');
+    calls = [];
+    replies = [{}];
+    await google.docs_append_text(ctx, { document: '1DocDocDocDoc', text: 'Decisões' });
+    assert.match(calls[0].url, /1DocDocDocDoc:batchUpdate$/);
+    assert.ok(JSON.parse(calls[0].body).requests[0].insertText.endOfSegmentLocation);
+  });
+
+  it('cria apresentação com um slide por bloco', async () => {
+    replies = [{ presentationId: 'P1', slides: [{ objectId: 'capa' }] }, {}];
+    const r = await google.slides_create(ctx, { title: 'Resultados', slides: 'Vendas\n- Subiram 20%\n\nPróximos passos\n- Contratar' });
+    const reqs = JSON.parse(calls[1].body).requests;
+    assert.equal(reqs.filter((x) => x.createSlide).length, 2);
+    assert.ok(reqs.some((x) => x.deleteObject?.objectId === 'capa'));
+    assert.ok(reqs.some((x) => x.insertText?.text === 'Subiram 20%'));
+    assert.equal(r.slides, 2);
+  });
+
+  it('cria formulário com pergunta aberta, múltipla escolha e obrigatória', async () => {
+    replies = [{ formId: 'F1', responderUri: 'https://forms/F1/viewform' }, {}];
+    const r = await google.forms_create(ctx, { title: 'Pesquisa', description: 'Rápida', questions: 'Seu nome *\nNota: 1 | 2 | 3' });
+    const reqs = JSON.parse(calls[1].body).requests;
+    const items = reqs.filter((x) => x.createItem).map((x) => x.createItem.item);
+    assert.equal(items[0].questionItem.question.required, true);
+    assert.equal(items[0].title, 'Seu nome');
+    assert.deepEqual(items[1].questionItem.question.choiceQuestion.options.map((o) => o.value), ['1', '2', '3']);
+    assert.equal(r.link_para_responder, 'https://forms/F1/viewform');
+  });
+
+  it('lê respostas do formulário com o título das perguntas', async () => {
+    replies = [
+      { info: { title: 'Pesquisa' }, items: [{ title: 'Nota', questionItem: { question: { questionId: 'q1' } } }] },
+      { responses: [{ lastSubmittedTime: 't', answers: { q1: { textAnswers: { answers: [{ value: '3' }] } } } }] },
+    ];
+    const r = await google.forms_get_responses(ctx, { form: 'https://docs.google.com/forms/d/1FormFormForm/edit' });
+    assert.deepEqual(r.respostas[0].respostas, { Nota: '3' });
   });
 });

@@ -8,8 +8,6 @@ const fmtDate = (v) => new Date(String(v).replace(' ', 'T')).toLocaleDateString(
 export default function AgentMemory({ agentId, editable, notify }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [draft, setDraft] = useState('');
-  const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState('todas');
 
   const load = useCallback(async () => {
@@ -24,22 +22,6 @@ export default function AgentMemory({ agentId, editable, notify }) {
   useEffect(() => {
     load();
   }, [load]);
-
-  async function add(e) {
-    e.preventDefault();
-    if (!draft.trim()) return;
-    setBusy(true);
-    try {
-      await api(`/agents/${agentId}/memories`, { method: 'POST', body: { content: draft } });
-      setDraft('');
-      notify('Guardado na memória do agente.');
-      load();
-    } catch (err) {
-      notify(err.message, 'error');
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function remove(m) {
     try {
@@ -59,29 +41,12 @@ export default function AgentMemory({ agentId, editable, notify }) {
         <div>
           <h2 id="memory-title">Memória</h2>
           <p className="panel-sub">
-            O que o agente guardou para as próximas conversas. As memórias de um contato só aparecem nas conversas com aquela pessoa.
+            Aprendida automaticamente nas conversas: quanto mais vocês conversam, mais o agente sabe sobre a empresa, as pessoas e o jeito de
+            trabalhar. Você não precisa preencher nada; aqui só dá para conferir e apagar o que não quiser.
           </p>
         </div>
       </div>
 
-      {editable && (
-        <form className="memory-add" onSubmit={add}>
-          <label htmlFor="memory-new" className="visually-hidden">
-            Nova memória
-          </label>
-          <input
-            id="memory-new"
-            className="input"
-            value={draft}
-            maxLength={data?.maxChars || 300}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Ex.: Orçamentos acima de R$ 5 mil vão para a diretoria antes de enviar ao cliente."
-          />
-          <button className="btn btn-secondary" type="submit" disabled={busy || !draft.trim()}>
-            Guardar
-          </button>
-        </form>
-      )}
 
       {error && <p className="field-error">{error}</p>}
       {data && data.memories.length > 0 && (
@@ -100,8 +65,8 @@ export default function AgentMemory({ agentId, editable, notify }) {
 
       {data && !data.memories.length && (
         <p className="muted">
-          Ainda vazia. O agente guarda sozinho o que aprender nas conversas (preferências, combinados, quem cuida do quê), e a equipe também pode
-          acrescentar acima.
+          Ainda vazia. Converse com o agente: ele guarda sozinho o que aprender (quem é quem, e-mails, preferências, combinados e como a empresa
+          trabalha).
         </p>
       )}
 

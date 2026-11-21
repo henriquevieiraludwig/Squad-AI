@@ -4,7 +4,7 @@
 import { db } from '../db.js';
 
 export const MEMORY_MAX_CHARS = 300;
-const GENERAL_LIMIT = 40;
+const GENERAL_LIMIT = 100;
 const CONTACT_LIMIT = 20;
 
 // Identifica a pessoa da conversa: o número/ID no canal ou, no teste, o nome de quem conversa.

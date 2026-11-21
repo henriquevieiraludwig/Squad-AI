@@ -107,7 +107,9 @@ export const actions = {
     }));
   },
 
-  async outlook_create_event({ token }, { subject, start, end, attendees, description, teams = false }) {
+  async outlook_create_event({ token }, { subject, start, end, attendees, description, teams: teamsOpt }) {
+    // Com convidados, a reunião do Teams sai por padrão; só não sai se o agente mandar teams=false.
+    const teams = teamsOpt ?? splitEmails(attendees).length > 0;
     const ev = await g('/me/events', token, {
       method: 'POST',
       body: {

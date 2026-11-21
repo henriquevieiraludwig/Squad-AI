@@ -14,12 +14,30 @@ export default function TestChat({ agents, openCreate, refreshSummary }) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const freshRef = useRef(false); // true depois de "Nova conversa": a próxima mensagem abre outra conversa
   const endRef = useRef(null);
 
+  // Reabre a última conversa com o agente (a conversa fica salva ao sair da tela).
   useEffect(() => {
+    let alive = true;
     setConversationId(null);
     setMessages([]);
     setError('');
+    freshRef.current = false;
+    if (!agentId) return;
+    setLoadingHistory(true);
+    api(`/agents/${agentId}/chat`)
+      .then((res) => {
+        if (!alive) return;
+        setConversationId(res.conversationId);
+        setMessages(res.messages || []);
+      })
+      .catch(() => {})
+      .finally(() => alive && setLoadingHistory(false));
+    return () => {
+      alive = false;
+    };
   }, [agentId]);
 
   useEffect(() => {
@@ -35,7 +53,11 @@ export default function TestChat({ agents, openCreate, refreshSummary }) {
     setMessages((m) => [...m, { role: 'user', text }]);
     setSending(true);
     try {
-      const res = await api(`/agents/${agentId}/chat`, { method: 'POST', body: { message: text, conversationId } });
+      const res = await api(`/agents/${agentId}/chat`, {
+        method: 'POST',
+        body: { message: text, conversationId, newConversation: freshRef.current },
+      });
+      freshRef.current = false;
       setConversationId(res.conversationId);
       setMessages((m) => [...m, { role: 'agent', text: res.reply, actions: res.actions }]);
       if (res.actions?.length) refreshSummary();
@@ -98,6 +120,7 @@ export default function TestChat({ agents, openCreate, refreshSummary }) {
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => {
+                  freshRef.current = true;
                   setConversationId(null);
                   setMessages([]);
                 }}
@@ -109,7 +132,8 @@ export default function TestChat({ agents, openCreate, refreshSummary }) {
         </div>
 
         <div className="chat-log" aria-live="polite">
-          {messages.length === 0 && (
+          {loadingHistory && messages.length === 0 && <p className="muted chat-loading">Carregando a conversa…</p>}
+          {!loadingHistory && messages.length === 0 && (
             <div className="chat-empty">
               <p>Comece com um pedido real do dia a dia. Por exemplo:</p>
               <ul>

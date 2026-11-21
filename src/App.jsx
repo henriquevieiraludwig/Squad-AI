@@ -7,13 +7,23 @@ import Platform from './pages/Platform.jsx';
 import PartnerConsole from './pages/partner/PartnerConsole.jsx';
 import { ForgotPassword, ResetPassword, VerifyEmail, AcceptInvite } from './pages/AccountPages.jsx';
 import { DEMO } from './api.js';
+import { useNewVersion } from './useNewVersion.js';
 
 const guest = (el) => <GuestOnly>{el}</GuestOnly>;
 
 export default function App() {
+  const newVersion = useNewVersion();
   return (
     <>
       {DEMO && <p className="demo-banner">Versão de demonstração. Os dados ficam salvos só neste navegador.</p>}
+      {newVersion && (
+        <div className="update-banner" role="status">
+          <span>Há uma versão nova da plataforma.</span>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => window.location.reload()}>
+            Atualizar agora
+          </button>
+        </div>
+      )}
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/entrar" element={guest(<Login />)} />

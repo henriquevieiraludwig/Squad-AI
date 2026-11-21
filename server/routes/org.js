@@ -181,9 +181,44 @@ export function registerOrgRoutes(app) {
       const conv = await db.get('SELECT id FROM conversations WHERE id = $1 AND org_id = $2 AND agent_id = $3 AND channel = $4', [conversationId, req.user.orgId, agent.id, 'teste']);
       if (!conv) conversationId = null;
     }
-    if (!conversationId) conversationId = await findOrCreateConversation({ orgId: req.user.orgId, agentId: agent.id, channel: 'teste', contact: req.user.name });
+    if (!conversationId) {
+      // A conversa de teste é de cada pessoa com cada agente: continua de onde parou, salvo em "Nova conversa".
+      conversationId = await findOrCreateConversation({
+        orgId: req.user.orgId,
+        agentId: agent.id,
+        channel: 'teste',
+        externalId: `user:${req.user.id}`,
+        contact: req.user.name,
+        forceNew: Boolean(req.body?.newConversation),
+      });
+    }
     const { reply, actions } = await runAgent({ orgId: req.user.orgId, agentId: agent.id, conversationId, text: message, author: 'contato' });
     res.json({ conversationId, reply, actions });
+  }));
+
+  // Última conversa de teste desta pessoa com o agente, para reabrir onde parou.
+  app.get('/api/agents/:id/chat', requireOrg('conversar'), h(async (req, res) => {
+    const agent = await orgAgent(req, res);
+    if (!agent) return;
+    const conv = await db.get(
+      `SELECT id FROM conversations WHERE org_id = $1 AND agent_id = $2 AND channel = 'teste' AND external_id = $3 ORDER BY id DESC LIMIT 1`,
+      [req.user.orgId, agent.id, `user:${req.user.id}`],
+    );
+    if (!conv) return res.json({ conversationId: null, messages: [] });
+    const rows = await db.all('SELECT id, author, content FROM messages WHERE conversation_id = $1 ORDER BY id', [conv.id]);
+    const runs = await db.all('SELECT id, action_id, status, input FROM action_runs WHERE conversation_id = $1 ORDER BY id', [conv.id]);
+    const messages = [];
+    for (const m of rows) {
+      if (!['contato', 'agente', 'humano'].includes(m.author)) continue;
+      const text = previewOf(m.content, Infinity);
+      if (!text) continue;
+      messages.push({ id: m.id, role: m.author === 'contato' ? 'user' : 'agent', text });
+    }
+    res.json({
+      conversationId: conv.id,
+      messages,
+      actions: runs.map((r) => ({ id: r.id, actionId: r.action_id, label: ACTION_BY_ID[r.action_id]?.label || r.action_id, status: r.status, input: r.input })),
+    });
   }));
 
   // ---------- Equipe ----------
