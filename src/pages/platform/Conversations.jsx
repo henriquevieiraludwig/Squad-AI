@@ -5,12 +5,12 @@ import AgentAvatar from '../../components/AgentAvatar.jsx';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { can } from '../../auth.jsx';
-import { IconInbox, IconSend } from '../../components/Icons.jsx';
+import { IconInbox, IconSend, IconPlus } from '../../components/Icons.jsx';
 import { PageHead, SearchInput, FilterChips, EmptyState, ErrorState, LoadingRows, formatDate, RUN_STATUS, CHANNEL_LABEL } from './common.jsx';
 
 const AUTHOR = { contato: 'Contato', agente: 'Agente', humano: 'Equipe', sistema: 'Aviso automático' };
 
-export default function Conversations({ user, notify, refreshSummary }) {
+export default function Conversations({ user, agents, notify, refreshSummary }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [list, setList] = useState(null);
@@ -18,6 +18,7 @@ export default function Conversations({ user, notify, refreshSummary }) {
   const [channel, setChannel] = useState('todos');
   const [status, setStatus] = useState('todas');
   const [query, setQuery] = useState('');
+  const [picking, setPicking] = useState(false);
 
   const load = useCallback(async () => {
     setError('');
@@ -42,7 +43,30 @@ export default function Conversations({ user, notify, refreshSummary }) {
 
   return (
     <>
-      <PageHead title="Conversas" lede="Tudo o que os agentes conversaram nos canais e nos testes. Assuma uma conversa quando ela precisar de uma pessoa." />
+      <PageHead title="Conversas" lede="Tudo o que os agentes conversaram nos canais e nos testes. Assuma uma conversa quando ela precisar de uma pessoa.">
+        {can(user, 'conversar') && agents?.length > 0 && (
+          <div className="new-conv">
+            <button className="btn btn-primary" onClick={() => setPicking((v) => !v)} aria-expanded={picking} aria-haspopup="menu">
+              <IconPlus />
+              Nova conversa
+            </button>
+            {picking && (
+              <div className="new-conv-menu" role="menu">
+                <span className="muted">Conversar com</span>
+                {agents.map((a) => (
+                  <button key={a.id} type="button" role="menuitem" className="chat-agent-item" onClick={() => navigate(`/app/testar?agente=${a.id}&nova=1`)}>
+                    <AgentAvatar avatar={a.avatar} name={a.name} size={32} />
+                    <span>
+                      <strong>{a.name}</strong>
+                      <span className="muted">{a.area}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </PageHead>
       <div className="toolbar">
         <SearchInput id="conv-search" label="Buscar conversas" value={query} onChange={setQuery} placeholder="Buscar por contato ou agente" />
         <FilterChips
@@ -228,9 +252,9 @@ function ConversationDetail({ id, user, notify, onChange, onBack }) {
 
       <div className="conv-log">
         {data.messages.map((m) => (
-          <div key={m.id} className={`msg ${m.author === 'contato' ? 'msg-agent' : 'msg-user'} ${m.author === 'humano' ? 'msg-human' : ''}`}>
+          <div key={m.id} className={`msg ${m.author === 'contato' ? 'msg-user' : 'msg-agent'} ${m.author === 'humano' ? 'msg-human' : ''}`}>
             <span className="msg-author">
-              {AUTHOR[m.author] || m.author}, {formatDate(m.at, true)}
+              {m.author === 'contato' && c.channel === 'teste' ? c.contact || 'Você' : AUTHOR[m.author] || m.author}, {formatDate(m.at, true)}
             </span>
             {m.author === 'contato' ? <p>{m.text}</p> : <FormattedText text={m.text} />}
           </div>
@@ -248,11 +272,11 @@ function ConversationDetail({ id, user, notify, onChange, onBack }) {
         )}
         {pending && (
           <>
-            <div className="msg msg-agent">
+            <div className="msg msg-user">
               <span className="msg-author">Contato, agora</span>
               <p>{pending}</p>
             </div>
-            <div className="msg msg-user msg-typing" aria-label="O agente está respondendo">
+            <div className="msg msg-agent msg-typing" aria-label="O agente está respondendo">
               <span />
               <span />
               <span />

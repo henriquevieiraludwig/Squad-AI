@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { fileToDataUrl } from '../api.js';
 import { IconSend, IconPaperclip, IconMic, IconX } from './Icons.jsx';
 
-const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp,application/pdf,.pdf,.docx,.txt,.md,.csv,.json';
 const MAX_FILES = 5;
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 10 * 1024 * 1024; // acima disso (e vídeo/áudio), vai só o nome e o tamanho
+const metaOnly = (f) => /^(video|audio)\//.test(f.type) || f.size > MAX_BYTES;
 
 const SpeechRecognition = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
 
@@ -28,10 +28,6 @@ export default function ChatComposer({ id, value, onChange, onSend, sending, pla
       if (next.length >= MAX_FILES) {
         notify?.(`Envie no máximo ${MAX_FILES} arquivos por mensagem.`, 'error');
         break;
-      }
-      if (f.size > MAX_BYTES) {
-        notify?.(`${f.name} passa de 10 MB.`, 'error');
-        continue;
       }
       next.push(f);
     }
@@ -77,7 +73,9 @@ export default function ChatComposer({ id, value, onChange, onSend, sending, pla
     if (!text && !files.length) return;
     let attachments = [];
     try {
-      attachments = await Promise.all(files.map(async (f) => ({ name: f.name, type: f.type, data: await fileToDataUrl(f) })));
+      attachments = await Promise.all(
+        files.map(async (f) => (metaOnly(f) ? { name: f.name, type: f.type, size: f.size } : { name: f.name, type: f.type, size: f.size, data: await fileToDataUrl(f) })),
+      );
     } catch (err) {
       notify?.(err.message, 'error');
       return;
@@ -104,7 +102,10 @@ export default function ChatComposer({ id, value, onChange, onSend, sending, pla
             <li key={`${f.name}-${i}`} className="attach-chip">
               <IconPaperclip size={14} />
               <span className="attach-name">{f.name}</span>
-              <span className="muted">{sizeLabel(f.size)}</span>
+              <span className="muted">
+                {sizeLabel(f.size)}
+                {metaOnly(f) ? ' · só o nome' : ''}
+              </span>
               <button type="button" onClick={() => setFiles(files.filter((_, j) => j !== i))} aria-label={`Remover ${f.name}`}>
                 <IconX />
               </button>
@@ -117,14 +118,13 @@ export default function ChatComposer({ id, value, onChange, onSend, sending, pla
           ref={fileRef}
           type="file"
           multiple
-          accept={ACCEPT}
           hidden
           onChange={(e) => {
             addFiles([...e.target.files]);
             e.target.value = '';
           }}
         />
-        <button type="button" className="btn btn-ghost composer-icon" onClick={() => fileRef.current?.click()} aria-label="Anexar arquivos" title="Anexar arquivos (imagem, PDF, Word, TXT, CSV)">
+        <button type="button" className="btn btn-ghost composer-icon" onClick={() => fileRef.current?.click()} aria-label="Anexar arquivos" title="Anexar arquivos (qualquer tipo)">
           <IconPaperclip />
         </button>
         {SpeechRecognition && (

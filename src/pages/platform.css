@@ -1981,7 +1981,9 @@
 }
 
 .msg-human {
-  background: var(--leaf);
+  /* Resposta de uma pessoa da equipe: do lado do agente, com destaque verde-claro. */
+  background: color-mix(in srgb, var(--leaf) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--leaf) 45%, transparent);
 }
 
 .conv-actions {
@@ -2548,4 +2550,30 @@
   .schedule-actions {
     justify-content: flex-start;
   }
+}
+
+/* Botão "Nova conversa" em Conversas */
+.new-conv {
+  position: relative;
+}
+
+.new-conv-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  width: 260px;
+  max-height: 360px;
+  overflow-y: auto;
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px -12px rgba(16, 39, 30, 0.3);
+}
+
+.new-conv-menu > .muted {
+  padding: 2px 8px 6px;
 }

@@ -156,9 +156,33 @@ describe('memória do agente', () => {
     const hist = (await ana.get(`/api/agents/${agentId}/chat`)).body.messages;
     assert.ok(hist.some((m) => m.role === 'user' && /📎 Anexos: grafico\.png/.test(m.text)));
 
-    const bad = await ana.post(`/api/agents/${agentId}/chat`, { message: 'veja', attachments: [{ name: 'planilha.xlsx', type: 'application/vnd.ms-excel', data: txt }] });
-    assert.equal(bad.status, 400);
-    assert.match(bad.body.error, /planilha\.xlsx/);
+    // Qualquer arquivo é aceito: Excel e PowerPoint viram texto; vídeo e formatos desconhecidos chegam como aviso.
+    const JSZip = (await import('jszip')).default;
+    const xl = new JSZip();
+    xl.file('xl/workbook.xml', '<workbook><sheets><sheet name="Vendas" sheetId="1"/></sheets></workbook>');
+    xl.file('xl/sharedStrings.xml', '<sst><si><t>Cliente</t></si><si><t>Total</t></si><si><t>Ana &amp; Cia</t></si></sst>');
+    xl.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row><row r="2"><c r="A2" t="s"><v>2</v></c><c r="B2"><v>1500</v></c></row></sheetData></worksheet>');
+    const pp = new JSZip();
+    pp.file('ppt/slides/slide1.xml', '<p:sld><a:p><a:r><a:t>Resultados 2026</a:t></a:r></a:p><a:p><a:r><a:t>Crescemos 20%</a:t></a:r></a:p></p:sld>');
+    const b64 = async (z) => (await z.generateAsync({ type: 'nodebuffer' })).toString('base64');
+    P.fakes.claude.queue.push(text('Li tudo.'));
+    const anyFiles = await ana.post(`/api/agents/${agentId}/chat`, {
+      message: 'veja',
+      attachments: [
+        { name: 'vendas.xlsx', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', data: `data:application/octet-stream;base64,${await b64(xl)}` },
+        { name: 'apresentacao.pptx', type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', data: `data:application/octet-stream;base64,${await b64(pp)}` },
+        { name: 'reuniao.mp4', type: 'video/mp4', size: 52_000_000 },
+        { name: 'backup.zip', type: 'application/zip', data: `data:application/zip;base64,${Buffer.from('PK').toString('base64')}` },
+      ],
+    });
+    assert.equal(anyFiles.status, 200);
+    const sent = JSON.stringify(P.fakes.claude.requests.at(-1).messages);
+    assert.match(sent, /# Aba: Vendas/);
+    assert.match(sent, /Cliente \| Total/);
+    assert.match(sent, /Ana & Cia \| 1500/);
+    assert.match(sent, /Resultados 2026[\s\S]*Crescemos 20%/);
+    assert.match(sent, /reuniao\.mp4[\s\S]*não consegue assistir/);
+    assert.match(sent, /backup\.zip[\s\S]*não é possível abrir este formato/);
     const many = await ana.post(`/api/agents/${agentId}/chat`, { message: 'x', attachments: Array.from({ length: 6 }, (_, i) => ({ name: `a${i}.txt`, type: 'text/plain', data: txt })) });
     assert.equal(many.status, 400);
   });

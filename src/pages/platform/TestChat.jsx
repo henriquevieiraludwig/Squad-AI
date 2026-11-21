@@ -28,6 +28,11 @@ export default function TestChat({ agents, openCreate, refreshSummary, notify })
     setError('');
     freshRef.current = false;
     if (!agentId) return;
+    // "Nova conversa" (vindo de Conversas): começa do zero em vez de reabrir a última.
+    if (params.get('nova') === '1') {
+      freshRef.current = true;
+      return;
+    }
     setLoadingHistory(true);
     api(`/agents/${agentId}/chat`)
       .then((res) => {
@@ -40,7 +45,8 @@ export default function TestChat({ agents, openCreate, refreshSummary, notify })
     return () => {
       alive = false;
     };
-  }, [agentId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId, params.get('nova')]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
