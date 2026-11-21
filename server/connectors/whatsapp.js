@@ -1,3 +1,4 @@
+import { toWhatsApp, chunkLines } from '../../shared/format.js';
 // WhatsApp Business pela Cloud API oficial da Meta. Também é canal de entrada.
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { request, ConnectorError } from './http.js';
@@ -90,5 +91,6 @@ export function parseInbound(payload) {
 }
 
 export async function reply(creds, externalId, text) {
-  for (let i = 0; i < text.length; i += 4000) await send(creds, externalId, text.slice(i, i + 4000));
+  // *negrito* e _itálico_ no formato do WhatsApp.
+  for (const part of chunkLines(toWhatsApp(text).split('\n'), 3800)) await send(creds, externalId, part);
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import FormattedText from '../../components/FormattedText.jsx';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { can } from '../../auth.jsx';
@@ -198,7 +199,7 @@ function ConversationDetail({ id, user, notify, onChange, onBack }) {
             <span className="msg-author">
               {AUTHOR[m.author] || m.author}, {formatDate(m.at, true)}
             </span>
-            <p>{m.text}</p>
+            {m.author === 'contato' ? <p>{m.text}</p> : <FormattedText text={m.text} />}
           </div>
         ))}
         {data.actions.length > 0 && (

@@ -139,7 +139,7 @@ describe('plataforma', () => {
     P.fakes.claude.queue.push(text('Pode deixar.'));
     const chat = await P.marcos.post(`/api/agents/${anaOrgAgent}/chat`, { message: 'Como peço reembolso?' });
     assert.equal(chat.status, 200, JSON.stringify(chat.body));
-    const sys = P.fakes.claude.requests.at(-1).system;
+    const sys = [].concat(P.fakes.claude.requests.at(-1).system).map((b) => (typeof b === 'string' ? b : b.text)).join('\n');
     assert.match(sys, /Reembolsos até R\$ 300/);
     assert.match(sys, /primeiro nome/);
     assert.match(sys, /<processo titulo="Reembolso de despesas"/);

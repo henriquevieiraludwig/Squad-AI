@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import FormattedText from '../../components/FormattedText.jsx';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, DEMO } from '../../api.js';
 import { IconChat, IconSend } from '../../components/Icons.jsx';
@@ -125,7 +126,7 @@ export default function TestChat({ agents, openCreate, refreshSummary }) {
           )}
           {messages.map((m, i) => (
             <div key={i} className={`msg msg-${m.role}`}>
-              <p>{m.text}</p>
+              {m.role === 'agent' ? <FormattedText text={m.text} /> : <p>{m.text}</p>}
               {m.actions?.map((a) => {
                 const st = RUN_STATUS[a.status];
                 return (

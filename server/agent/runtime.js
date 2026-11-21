@@ -8,6 +8,7 @@ import { partnerById } from '../brand.js';
 import { knowledgeFor } from '../knowledge.js';
 import { assertCanRunAgent, recordUsage } from '../usage.js';
 import { enqueue } from '../jobs.js';
+import { MEMORY_TOOLS, runMemoryTool, memoriesFor, memoryPromptBlock, contactKeyFor } from './memory.js';
 
 const MODEL = process.env.AGENT_MODEL || 'claude-opus-5-5';
 const MAX_TOOL_ROUNDS = 8;
@@ -52,13 +53,14 @@ async function enabledTools(agent, partner) {
 
 const CHANNEL_NOTES = {
   teste: 'Conversa de teste dentro da plataforma, com alguém da equipe da empresa.',
-  telegram: 'Conversa pelo Telegram. Escreva em texto simples, sem Markdown, com mensagens curtas.',
-  whatsapp: 'Conversa pelo WhatsApp. Escreva em texto simples, sem Markdown, com mensagens curtas.',
+  telegram: 'Conversa pelo Telegram. Prefira mensagens curtas, como numa conversa de celular.',
+  whatsapp: 'Conversa pelo WhatsApp. Prefira mensagens curtas, como numa conversa de celular.',
 };
 
-function systemPrompt({ agent, orgName, channel, knowledge }) {
+// Instruções em duas partes: a fixa (vai para o cache) e a que muda por conversa (memória, canal e data).
+function systemPrompt({ agent, orgName, channel, knowledge, memories }) {
   const today = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full', timeZone: TZ }).format(new Date());
-  return `Você é ${agent.name}, agente de IA da empresa ${orgName}, atuando na área de ${agent.area}.
+  const stable = `Você é ${agent.name}, agente de IA da empresa ${orgName}, atuando na área de ${agent.area}.
 
 Sua função, nas palavras da equipe: ${agent.role_description || 'ainda não descrita. Ajude dentro da sua área.'}
 
@@ -76,8 +78,23 @@ Você pode agir nas plataformas da empresa pelas ferramentas disponíveis. Algum
 
 Antes de enviar algo em nome da empresa (e-mails, mensagens, convites), confirme com a pessoa os dados que faltarem em vez de supor destinatários, horários ou conteúdo. Se nenhuma ferramenta disponível resolve o pedido, diga isso com clareza.
 
+Memória: você tem uma memória que continua entre as conversas. Quando aprender algo que será útil depois (preferências, combinados, quem é responsável por quê, dados que a pessoa pediu para lembrar), guarde com a ferramenta lembrar, sem anunciar cada vez. Não guarde senhas, números de cartão, documentos pessoais nem dados de saúde.
+
+Formato das respostas:
+- Escreva como numa conversa, em parágrafos curtos.
+- Para destacar, use **negrito**, *itálico* ou __sublinhado__, com moderação (só no que realmente importa).
+- Para listas, comece cada item com "- ". Não use títulos (#), tabelas, blocos de código nem linhas divisórias.
+- Use emojis com naturalidade para deixar a conversa mais simpática (no máximo um ou dois por mensagem, como 😊, 👍, 📅, ✅). Evite emojis em assuntos delicados, como reclamações, cobranças ou problemas graves.`;
+
+  const dynamic = `${memoryPromptBlock(memories)}
+
 Canal: ${CHANNEL_NOTES[channel] || channel}
 Hoje é ${today}. Fuso horário: ${TZ}.`;
+
+  return [
+    { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: dynamic },
+  ];
 }
 
 // ---------- Histórico ----------
@@ -201,16 +218,21 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, author =
   await assertCanRunAgent(orgId);
   const org = await db.get('SELECT name, partner_id FROM organizations WHERE id = $1', [orgId]);
   const partner = await partnerById(org.partner_id);
-  const conv = await db.get('SELECT channel FROM conversations WHERE id = $1', [conversationId]);
+  const conv = await db.get('SELECT channel, external_id, contact_label FROM conversations WHERE id = $1', [conversationId]);
+  const contactKey = contactKeyFor(conv);
 
-  const [tools, knowledge] = await Promise.all([enabledTools(agent, partner), knowledgeFor(orgId, agentId)]);
+  const [tools, knowledge, memories] = await Promise.all([enabledTools(agent, partner), knowledgeFor(orgId, agentId), memoriesFor(agentId, contactKey)]);
   const toolsByName = Object.fromEntries(tools.map((t) => [t.action.id, t]));
-  const toolDefs = tools.map(({ action, mode }) => ({
-    name: action.id,
-    description: action.description + (mode === 'approval' ? ' Esta ação passa por aprovação humana antes de ser executada.' : ''),
-    input_schema: action.input_schema,
-  }));
-  const system = systemPrompt({ agent, orgName: org.name, channel: conv.channel, knowledge });
+  // A memória vem primeiro e é sempre igual: mantém o começo da lista estável para o cache.
+  const toolDefs = [
+    ...MEMORY_TOOLS,
+    ...tools.map(({ action, mode }) => ({
+      name: action.id,
+      description: action.description + (mode === 'approval' ? ' Esta ação passa por aprovação humana antes de ser executada.' : ''),
+      input_schema: action.input_schema,
+    })),
+  ];
+  const system = systemPrompt({ agent, orgName: org.name, channel: conv.channel, knowledge, memories });
 
   const messages = await loadHistory(conversationId);
   messages.push({ role: 'user', content: text });
@@ -221,7 +243,7 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, author =
     await appendMessage(conversationId, 'system', note, 'sistema');
   }
 
-  const ctx = { orgId, agentId, conversationId };
+  const ctx = { orgId, agentId, conversationId, contactKey, contactLabel: conv.contact_label };
   const runs = [];
   const totals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
   let reply = '';
@@ -231,7 +253,7 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, author =
       model: MODEL,
       max_tokens: 16000,
       system,
-      tools: toolDefs.length ? toolDefs : undefined,
+      tools: toolDefs,
       messages,
       output_config: { effort: 'medium' },
       cache_control: { type: 'ephemeral' },
@@ -266,6 +288,10 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, author =
 
     const results = [];
     for (const block of toolUses) {
+      if (block.name === 'lembrar' || block.name === 'esquecer') {
+        results.push(await runMemoryTool(ctx, block));
+        continue;
+      }
       const { result, run } = await runTool(ctx, block, toolsByName);
       results.push(result);
       if (run) runs.push(run);

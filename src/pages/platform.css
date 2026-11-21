@@ -986,8 +986,8 @@
 
 .chat-panel {
   display: grid;
-  grid-template-rows: auto minmax(320px, 1fr) auto auto;
-  min-height: min(680px, calc(100vh - 220px));
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  min-height: 0;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
@@ -1073,6 +1073,34 @@
 
 .msg p {
   white-space: pre-wrap;
+}
+
+/* Texto formatado das mensagens do agente */
+.fmt {
+  display: grid;
+  gap: 6px;
+}
+
+.fmt p {
+  margin: 0;
+}
+
+.fmt ul,
+.fmt ol {
+  margin: 0;
+  padding-left: 1.3em;
+  display: grid;
+  gap: 3px;
+}
+
+.fmt strong {
+  font-weight: 600;
+}
+
+.fmt a {
+  color: var(--leaf);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .msg-user {
@@ -1961,4 +1989,80 @@
 
 .data-export h2 {
   font-size: var(--step-1);
+}
+
+/* Tela de conversa: ocupa a altura da janela; só a lista de mensagens rola. */
+.content:has(.chat-panel) {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: clamp(16px, 2.5vw, 28px);
+  overflow: hidden;
+}
+
+.content:has(.chat-panel) > * {
+  flex: none;
+}
+
+.content:has(.chat-panel) > .chat-panel {
+  flex: 1 1 auto;
+}
+
+.chat-log {
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 900px) {
+  /* No celular a barra superior (58px) fica acima do conteúdo. */
+  .content:has(.chat-panel) {
+    height: calc(100dvh - 58px);
+  }
+}
+
+/* Na demonstração há uma faixa de aviso no topo. */
+.demo-banner ~ .platform .content:has(.chat-panel) {
+  height: calc(100dvh - 36px);
+}
+
+/* Memória do agente */
+.memory-add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.memory-add .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.memory-filter {
+  margin-bottom: 10px;
+}
+
+.memory-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.memory-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.memory-list p {
+  margin: 0 0 2px;
+}
+
+@media (max-width: 560px) {
+  .memory-add {
+    flex-direction: column;
+  }
 }

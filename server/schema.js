@@ -247,4 +247,21 @@ export const MIGRATIONS = [
   -- Avatar escolhido para o agente (avatar-1 a avatar-8).
   ALTER TABLE agents ADD COLUMN IF NOT EXISTS avatar TEXT;
   `,
+  `
+  -- Memória dos agentes: fatos gerais (valem para todas as conversas) e fatos sobre um contato
+  -- (só aparecem nas conversas com aquela pessoa). Gravados pelo próprio agente ou pela equipe.
+  CREATE TABLE IF NOT EXISTS agent_memories (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    contact_key TEXT,
+    contact_label TEXT NOT NULL DEFAULT '',
+    content TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'agente',
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS idx_memories_agent ON agent_memories (agent_id, contact_key);
+  ALTER TABLE agent_memories ENABLE ROW LEVEL SECURITY;
+  `,
 ];

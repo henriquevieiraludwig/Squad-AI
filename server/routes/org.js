@@ -8,7 +8,8 @@ import { extractText, ExtractError, MAX_DOC_CHARS } from '../knowledge.js';
 import { usageSummary, assertCanAddAgent, assertCanAddMember, assertKnowledgeRoom, LimitError } from '../usage.js';
 import { createToken, sendTemplate } from './auth.js';
 
-const AREAS = ['Atendimento', 'Vendas', 'Pessoas e RH', 'Operações', 'Financeiro', 'Jurídico', 'Outra'];
+import { AREAS } from '../../shared/areas.js';
+import { saveMemory, deleteMemory, MEMORY_MAX_CHARS } from '../agent/memory.js';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const clean = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 const DAY = 86_400_000;
@@ -89,7 +90,7 @@ export function registerOrgRoutes(app) {
     if (!agent) return;
     const channels = await db.all('SELECT provider FROM channel_routes WHERE org_id = $1 AND agent_id = $2', [req.user.orgId, agent.id]);
     const processes = await db.all('SELECT id, title FROM processes WHERE org_id = $1 AND active AND (agent_id IS NULL OR agent_id = $2) ORDER BY id', [req.user.orgId, agent.id]);
-    res.json({ agent: agentView(agent), tools: await agentToolModes(agent.id), channels: channels.map((c) => c.provider), processes });
+    res.json({ agent: agentView(agent), tools: await agentToolModes(agent.id), channels: channels.map((c) => c.provider), processes, areas: AREAS });
   }));
 
   app.put('/api/agents/:id', requireOrg('configurar'), h(async (req, res) => {
@@ -109,6 +110,48 @@ export function registerOrgRoutes(app) {
     const agent = await orgAgent(req, res);
     if (!agent) return;
     await db.run('DELETE FROM agents WHERE id = $1', [agent.id]);
+    res.json({ ok: true });
+  }));
+
+  // ---------- Memória do agente ----------
+
+  app.get('/api/agents/:id/memories', requireOrg(), h(async (req, res) => {
+    const agent = await orgAgent(req, res);
+    if (!agent) return;
+    const rows = await db.all(
+      `SELECT m.id, m.content, m.contact_key, m.contact_label, m.source, m.created_at, u.name AS created_by_name
+         FROM agent_memories m LEFT JOIN users u ON u.id = m.created_by
+        WHERE m.agent_id = $1 AND m.org_id = $2 ORDER BY m.id DESC LIMIT 300`,
+      [agent.id, req.user.orgId],
+    );
+    res.json({
+      memories: rows.map((m) => ({
+        id: m.id,
+        content: m.content,
+        scope: m.contact_key ? 'contato' : 'geral',
+        contact: m.contact_label || null,
+        source: m.source,
+        createdBy: m.created_by_name || null,
+        createdAt: m.created_at,
+      })),
+      maxChars: MEMORY_MAX_CHARS,
+    });
+  }));
+
+  app.post('/api/agents/:id/memories', requireOrg('configurar'), h(async (req, res) => {
+    const agent = await orgAgent(req, res);
+    if (!agent) return;
+    const content = clean(req.body?.content, MEMORY_MAX_CHARS);
+    if (!content) return res.status(400).json({ error: 'Escreva o que o agente deve lembrar.', fields: { content: 'Escreva o que o agente deve lembrar.' } });
+    const id = await saveMemory({ orgId: req.user.orgId, agentId: agent.id, content, source: 'equipe', userId: req.user.id });
+    res.status(201).json({ id });
+  }));
+
+  app.delete('/api/agents/:id/memories/:memoryId', requireOrg('configurar'), h(async (req, res) => {
+    const agent = await orgAgent(req, res);
+    if (!agent) return;
+    const ok = await deleteMemory({ orgId: req.user.orgId, agentId: agent.id, id: req.params.memoryId });
+    if (!ok) return res.status(404).json({ error: 'Memória não encontrada.' });
     res.json({ ok: true });
   }));
 
@@ -506,7 +549,7 @@ export function registerOrgRoutes(app) {
   app.get('/api/org/export', requireOrg('equipe'), h(async (req, res) => {
     if (req.user.role !== 'owner') return res.status(403).json({ error: 'Só o proprietário pode exportar os dados da empresa.' });
     const o = req.user.orgId;
-    const [org, users, agents, docs, processes, conversations, messages, runs, usage] = await Promise.all([
+    const [org, users, agents, docs, processes, conversations, messages, runs, usage, memories] = await Promise.all([
       db.get('SELECT id, name, created_at FROM organizations WHERE id = $1', [o]),
       db.all('SELECT id, name, email, role, created_at FROM users WHERE org_id = $1', [o]),
       db.all('SELECT * FROM agents WHERE org_id = $1', [o]),
@@ -516,9 +559,10 @@ export function registerOrgRoutes(app) {
       db.all('SELECT m.conversation_id, m.role, m.author, m.content, m.created_at FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE c.org_id = $1 ORDER BY m.id', [o]),
       db.all('SELECT id, agent_id, conversation_id, action_id, input, status, result, requested_at, decided_at FROM action_runs WHERE org_id = $1', [o]),
       db.all('SELECT agent_id, channel, model, input_tokens, output_tokens, created_at FROM usage_events WHERE org_id = $1', [o]),
+      db.all('SELECT id, agent_id, contact_label, content, source, created_at FROM agent_memories WHERE org_id = $1', [o]),
     ]);
     res.set('Content-Disposition', `attachment; filename="dados-${org.id}.json"`);
-    res.json({ exportedAt: new Date().toISOString(), organization: org, users, agents, knowledge: docs, processes, conversations, messages, actions: runs, usage });
+    res.json({ exportedAt: new Date().toISOString(), organization: org, users, agents, knowledge: docs, processes, conversations, messages, actions: runs, usage, memories });
   }));
 }
 

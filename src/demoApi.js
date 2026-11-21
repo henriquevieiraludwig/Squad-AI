@@ -5,7 +5,7 @@ import { PROVIDERS, ACTIONS, ACTION_BY_ID, PROVIDER_BY_ID, connectionFor } from 
 
 const KEY = 'squad-ai-demo-v2';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const AREAS = ['Atendimento', 'Vendas', 'Pessoas e RH', 'Operações', 'Financeiro', 'Jurídico', 'Outra'];
+import { AREAS } from '../shared/areas.js';
 
 let state = null;
 
@@ -380,6 +380,26 @@ async function integrationRoutes(s, method, path, body) {
     return { ok: true, agentId: body.agentId || null };
   }
 
+  if ((m = path.match(/^\/agents\/(\d+)\/memories(?:\/(\d+))?$/))) {
+    const u = requireUser();
+    const agent = s.agents.find((a) => a.id === Number(m[1]) && a.orgId === u.orgId);
+    if (!agent) throw new ApiError('Agente não encontrado.', 404);
+    const list = ((s.memories ??= {})[agent.id] ??= []);
+    if (method === 'GET') return { memories: [...list].reverse(), maxChars: 300 };
+    if (method === 'POST') {
+      const content = clean(body.content, 300);
+      if (!content) throw new ApiError('Escreva o que o agente deve lembrar.', 400, { content: 'Escreva o que o agente deve lembrar.' });
+      const id = nextId();
+      list.push({ id, content, scope: 'geral', contact: null, source: 'equipe', createdBy: u.name, createdAt: now() });
+      save();
+      return { id };
+    }
+    if (method === 'DELETE') {
+      s.memories[agent.id] = list.filter((x) => x.id !== Number(m[2]));
+      save();
+      return { ok: true };
+    }
+  }
   if ((m = path.match(/^\/agents\/(\d+)(\/tools|\/chat)?$/))) {
     const u = requireUser();
     const agent = s.agents.find((a) => a.id === Number(m[1]) && a.orgId === u.orgId);
@@ -390,7 +410,26 @@ async function integrationRoutes(s, method, path, body) {
         agent: publicAgent(agent),
         tools: s.tools[agent.id] || {},
         channels: Object.entries(routes).filter(([, v]) => v === agent.id).map(([k]) => k),
+        areas: AREAS,
       };
+    }
+    if (!m[2] && method === 'PUT') {
+      const fields = {};
+      if ('name' in body) {
+        const name = clean(body.name, 80);
+        if (!name) fields.name = 'Dê um nome ao agente.';
+        else agent.name = name;
+      }
+      if ('area' in body) {
+        if (!AREAS.includes(body.area)) fields.area = 'Escolha a área em que o agente vai atuar.';
+        else agent.area = body.area;
+      }
+      if ('roleDescription' in body) agent.roleDescription = clean(body.roleDescription, 600);
+      if ('status' in body && ['em_treinamento', 'publicado'].includes(body.status)) agent.status = body.status;
+      if ('avatar' in body) agent.avatar = body.avatar;
+      if (Object.keys(fields).length) throw new ApiError('Revise os campos destacados.', 400, fields);
+      save();
+      return { agent: publicAgent(agent) };
     }
     if (m[2] === '/tools' && method === 'PUT') {
       if (!ACTION_BY_ID[body.actionId]) throw new ApiError('Ação desconhecida.', 400);

@@ -1,3 +1,4 @@
+import { toTelegramBlocks, chunkLines } from '../../shared/format.js';
 // Telegram: bot criado pela empresa no @BotFather. Também é canal de entrada.
 import { request, ConnectorError, PUBLIC_URL } from './http.js';
 
@@ -43,8 +44,13 @@ export function parseInbound(update) {
 }
 
 export async function reply(creds, externalId, text) {
-  // O Telegram aceita até 4096 caracteres por mensagem.
-  for (let i = 0; i < text.length; i += 4000) {
-    await api(creds.botToken, 'sendMessage', { chat_id: externalId, text: text.slice(i, i + 4000) });
+  // Negrito, itálico e sublinhado viram HTML do Telegram. Até 4096 caracteres por mensagem.
+  for (const part of chunkLines(toTelegramBlocks(text), 3800)) {
+    try {
+      await api(creds.botToken, 'sendMessage', { chat_id: externalId, text: part, parse_mode: 'HTML' });
+    } catch {
+      // Se o Telegram recusar o HTML, manda o mesmo trecho como texto puro.
+      await api(creds.botToken, 'sendMessage', { chat_id: externalId, text: part.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&') });
+    }
   }
 }

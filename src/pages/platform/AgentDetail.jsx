@@ -7,6 +7,8 @@ import { can } from '../../auth.jsx';
 import { PageHead, SearchInput, FilterChips, Monogram, ErrorState, LoadingRows, AGENT_STATUS, formatDate } from './common.jsx';
 import AgentAvatar from '../../components/AgentAvatar.jsx';
 import AvatarPicker from '../../components/AvatarPicker.jsx';
+import CreateAgentDialog from '../../components/CreateAgentDialog.jsx';
+import AgentMemory from '../../components/AgentMemory.jsx';
 
 const MODE_OPTIONS = [
   { value: 'off', label: 'Desligada' },
@@ -23,6 +25,7 @@ export default function AgentDetail({ user, notify, refreshSummary }) {
   const [saving, setSaving] = useState(null);
   const [query, setQuery] = useState('');
   const [view, setView] = useState('conectadas');
+  const [editOpen, setEditOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError('');
@@ -97,11 +100,30 @@ export default function AgentDetail({ user, notify, refreshSummary }) {
         title={agent.name}
         lede={agent.roleDescription || 'Sem descrição da função ainda.'}
       >
+        {editable && (
+          <button type="button" className="btn btn-secondary" onClick={() => setEditOpen(true)}>
+            Editar agente
+          </button>
+        )}
         <Link to={`/app/testar?agente=${agent.id}`} className="btn btn-primary">
           <IconChat size={18} />
           Testar conversa
         </Link>
       </PageHead>
+      {editable && (
+        <CreateAgentDialog
+          open={editOpen}
+          agent={agent}
+          areas={data.areas || [agent.area]}
+          onClose={() => setEditOpen(false)}
+          onSaved={(updated) => {
+            setData((d) => ({ ...d, agent: { ...d.agent, ...updated } }));
+            setEditOpen(false);
+            notify('Agente atualizado.');
+            refreshSummary?.();
+          }}
+        />
+      )}
       <p className="meta-line">
         <span className={`pill ${st.cls}`}>{st.label}</span>
         <span>{agent.area}</span>
@@ -158,6 +180,8 @@ export default function AgentDetail({ user, notify, refreshSummary }) {
           <p className="muted">Nenhum processo ainda. Mapeie o primeiro em Processos para o agente seguir as etapas da empresa.</p>
         )}
       </section>
+
+      <AgentMemory agentId={agent.id} editable={editable} notify={notify} />
 
       <section className="panel" aria-labelledby="tools-title">
         <div className="panel-head">
