@@ -4,10 +4,60 @@ import { registerJob, enqueue } from './jobs.js';
 import { partnerById } from './brand.js';
 import { sendEmail, emailTemplates } from './email.js';
 import { connectors, credentialsFor } from './connectors/index.js';
-import { handleInbound, appendMessage } from './agent/runtime.js';
+import { handleInbound, appendMessage, runAgent, findOrCreateConversation } from './agent/runtime.js';
+import { describeSchedule } from './schedules.js';
+import { toPlainText } from '../shared/format.js';
 import { ACTION_BY_ID } from '../shared/catalog.js';
 
 export function registerJobHandlers() {
+  // Executa uma tarefa agendada: o agente recebe a instrução numa conversa só dessa tarefa (fica com o histórico).
+  registerJob('tarefa_agendada', async ({ scheduleId }) => {
+    const s = await db.get(
+      `SELECT s.*, a.name AS agent_name, o.partner_id, u.email AS creator_email
+         FROM agent_schedules s JOIN agents a ON a.id = s.agent_id JOIN organizations o ON o.id = s.org_id
+         LEFT JOIN users u ON u.id = s.created_by WHERE s.id = $1`,
+      [scheduleId],
+    );
+    if (!s) return;
+    let ok = true;
+    let result;
+    let conversationId = null;
+    try {
+      conversationId = await findOrCreateConversation({
+        orgId: s.org_id,
+        agentId: s.agent_id,
+        channel: 'agendada',
+        externalId: `schedule:${s.id}`,
+        contact: s.title,
+      });
+      const out = await runAgent({
+        orgId: s.org_id,
+        agentId: s.agent_id,
+        conversationId,
+        text: `Tarefa agendada "${s.title}" (${describeSchedule(s)}). Execute agora:\n\n${s.instruction}`,
+        author: 'contato',
+      });
+      result = out.reply;
+    } catch (err) {
+      ok = false;
+      result = err.message;
+    }
+    await db.run(`UPDATE agent_schedules SET last_run_at = now(), last_status = $2, last_result = $3, conversation_id = COALESCE($4, conversation_id) WHERE id = $1`, [
+      s.id,
+      ok ? 'ok' : 'erro',
+      String(result || '').slice(0, 4000),
+      conversationId,
+    ]);
+    if (s.notify_email && s.creator_email) {
+      await enqueue('email', {
+        partnerId: s.partner_id,
+        to: s.creator_email,
+        template: 'scheduled',
+        args: [{ title: s.title, agentName: s.agent_name, result: toPlainText(result), ok, conversationId }],
+      });
+    }
+  });
+
   registerJob('email', async ({ partnerId, to, template, args = [] }) => {
     const partner = await partnerById(partnerId);
     const templates = await emailTemplates(partner);

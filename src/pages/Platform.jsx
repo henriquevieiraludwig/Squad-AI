@@ -13,6 +13,7 @@ import {
   IconTeam,
   IconMenu,
   IconInbox,
+  IconClock,
 } from '../components/Icons.jsx';
 import { useAuth } from '../auth.jsx';
 import VerifyBanner from './platform/VerifyBanner.jsx';
@@ -25,6 +26,7 @@ import Approvals from './platform/Approvals.jsx';
 import TestChat from './platform/TestChat.jsx';
 import Knowledge from './platform/Knowledge.jsx';
 import Processes from './platform/Processes.jsx';
+import Schedules from './platform/Schedules.jsx';
 import Team from './platform/Team.jsx';
 import Conversations from './platform/Conversations.jsx';
 import './platform.css';
@@ -33,6 +35,7 @@ const nav = [
   { to: '/app', label: 'Visão geral', Icon: IconHome, end: true },
   { to: '/app/agentes', label: 'Agentes', Icon: IconAgent },
   { to: '/app/processos', label: 'Processos', Icon: IconProcess },
+  { to: '/app/agendadas', label: 'Tarefas agendadas', Icon: IconClock },
   { to: '/app/conhecimento', label: 'Contexto da empresa', Icon: IconDoc },
   { to: '/app/conversas', label: 'Conversas', Icon: IconInbox, badge: 'human' },
   { to: '/app/aprovacoes', label: 'Aprovações', Icon: IconShield, badge: 'pending' },
@@ -207,6 +210,7 @@ export default function Platform() {
           <Route path="aprovacoes" element={<Approvals {...shared} />} />
           <Route path="testar" element={<TestChat {...shared} />} />
           <Route path="processos" element={<Processes {...shared} />} />
+          <Route path="agendadas" element={<Schedules {...shared} />} />
           <Route path="conhecimento" element={<Knowledge {...shared} />} />
           <Route path="equipe" element={<Team {...shared} />} />
           <Route path="conversas" element={<Conversations {...shared} />} />

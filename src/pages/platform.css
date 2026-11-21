@@ -2468,3 +2468,84 @@
     flex: 1 1 100%;
   }
 }
+
+/* Tarefas agendadas */
+.schedule-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.schedule-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.schedule-card.is-paused {
+  opacity: 0.75;
+}
+
+.schedule-main {
+  display: flex;
+  gap: 14px;
+  min-width: 0;
+}
+
+.schedule-text {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.schedule-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.schedule-title h3 {
+  font-size: var(--step-1);
+  font-weight: 600;
+}
+
+.schedule-instruction {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.schedule-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: 4px;
+}
+
+.schedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  flex: none;
+}
+
+.schedule-examples {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 420px);
+}
+
+@media (max-width: 700px) {
+  .schedule-card {
+    flex-direction: column;
+  }
+
+  .schedule-actions {
+    justify-content: flex-start;
+  }
+}

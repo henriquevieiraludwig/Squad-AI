@@ -89,5 +89,13 @@ export async function emailTemplates(partner) {
       cta: 'Revisar aprovações',
       url: `${base}/app/aprovacoes`,
     }),
+    scheduled: ({ title, agentName, result, ok, conversationId }) => ({
+      subject: `${ok ? '✅' : '⚠️'} Tarefa agendada: ${title}`,
+      title: ok ? `${agentName} concluiu "${title}"` : `${agentName} não conseguiu concluir "${title}"`,
+      intro: String(result || '').slice(0, 1500),
+      cta: 'Ver a conversa',
+      url: `${base}/app/conversas/${conversationId}`,
+      outro: 'Você recebe este e-mail porque marcou "Avisar por e-mail" nesta tarefa agendada.',
+    }),
   };
 }

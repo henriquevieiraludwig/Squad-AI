@@ -273,4 +273,31 @@ export const MIGRATIONS = [
   -- Processos com vários agentes: agente responsável por cada etapa (mesma ordem de "steps"; null = quem segue o processo).
   ALTER TABLE processes ADD COLUMN IF NOT EXISTS step_agents JSONB NOT NULL DEFAULT '[]';
   `,
+  `
+  -- Tarefas agendadas: o agente executa uma instrução sozinho no horário marcado.
+  CREATE TABLE IF NOT EXISTS agent_schedules (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    instruction TEXT NOT NULL,
+    frequency TEXT NOT NULL CHECK (frequency IN ('uma_vez', 'diario', 'dias_uteis', 'semanal', 'mensal')),
+    run_time TEXT NOT NULL DEFAULT '08:00',
+    weekdays JSONB NOT NULL DEFAULT '[]',
+    day_of_month INTEGER,
+    run_date TEXT,
+    notify_email BOOLEAN NOT NULL DEFAULT false,
+    active BOOLEAN NOT NULL DEFAULT true,
+    next_run_at TIMESTAMPTZ,
+    last_run_at TIMESTAMPTZ,
+    last_status TEXT,
+    last_result TEXT,
+    conversation_id INTEGER REFERENCES conversations(id) ON DELETE SET NULL,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS idx_schedules_due ON agent_schedules (active, next_run_at);
+  CREATE INDEX IF NOT EXISTS idx_schedules_org ON agent_schedules (org_id);
+  ALTER TABLE agent_schedules ENABLE ROW LEVEL SECURITY;
+  `,
 ];

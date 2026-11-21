@@ -9,6 +9,7 @@ import { knowledgeFor } from '../knowledge.js';
 import { assertCanRunAgent, recordUsage } from '../usage.js';
 import { enqueue } from '../jobs.js';
 import { MEMORY_TOOLS, runMemoryTool, memoriesFor, memoryPromptBlock, contactKeyFor } from './memory.js';
+import { SCHEDULE_TOOLS, SCHEDULE_TOOL_NAMES, runScheduleTool } from './scheduleTools.js';
 
 const MODEL = process.env.AGENT_MODEL || 'claude-opus-5-5';
 const MAX_TOOL_ROUNDS = 8;
@@ -52,6 +53,8 @@ async function enabledTools(agent, partner) {
 }
 
 const CHANNEL_NOTES = {
+  agendada:
+    'Execução automática de uma tarefa agendada pela equipe. Ninguém está acompanhando em tempo real: faça a tarefa com as suas ferramentas, sem fazer perguntas, e termine com um resumo curto do que foi feito e do que encontrou. Se faltar algo para concluir, diga o que faltou.',
   interno: 'Tarefa recebida de outro agente da empresa, como parte de um processo. Faça a sua parte com as suas ferramentas e responda com o resultado, de forma objetiva, para o agente que passou a tarefa. Não faça perguntas que só o cliente poderia responder; se faltar algo, diga o que falta.',
   teste: 'Conversa de teste dentro da plataforma, com alguém da equipe da empresa.',
   telegram: 'Conversa pelo Telegram. Prefira mensagens curtas, como numa conversa de celular.',
@@ -286,6 +289,9 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
   const partner = await partnerById(org.partner_id);
   const conv = await db.get('SELECT channel, external_id, contact_label FROM conversations WHERE id = $1', [conversationId]);
   const contactKey = contactKeyFor(conv);
+  // Na conversa de teste, quem fala é alguém da equipe logado na plataforma (user:ID).
+  const userMatch = conv.channel === 'teste' && /^user:(\d+)$/.exec(conv.external_id || '');
+  const teamUserId = userMatch ? Number(userMatch[1]) : null;
 
   const [tools, knowledge, memories, others] = await Promise.all([
     enabledTools(agent, partner),
@@ -298,6 +304,8 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
   const toolDefs = [
     ...MEMORY_TOOLS,
     ...(others.length ? [handoffTool(others)] : []),
+    // Agendar tarefas: só para alguém da equipe conversando pela plataforma.
+    ...(teamUserId ? SCHEDULE_TOOLS : []),
     ...tools.map(({ action, mode }) => ({
       name: action.id,
       description: action.description + (mode === 'approval' ? ' Esta ação passa por aprovação humana antes de ser executada.' : ''),
@@ -306,7 +314,6 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
   ];
   // Na conversa de teste, quem fala é alguém da equipe logado na plataforma: o agente sabe quem é.
   let person = null;
-  const userMatch = conv.channel === 'teste' && /^user:(\d+)$/.exec(conv.external_id || '');
   if (userMatch) {
     const u = await db.get('SELECT name, email, role FROM users WHERE id = $1 AND org_id = $2', [Number(userMatch[1]), orgId]);
     const ROLE_NAMES = { owner: 'proprietário(a)', admin: 'administrador(a)', approver: 'aprovador(a)', member: 'membro da equipe' };
@@ -335,7 +342,7 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
   // Mesma junção que loadHistory faz ao reler: o histórico reenviado fica idêntico ao enviado agora.
   if (notes.length) messages.push({ role: 'system', content: notes.join('\n\n') });
 
-  const ctx = { orgId, agentId, agentName: agent.name, conversationId, contactKey, contactLabel: conv.contact_label, depth };
+  const ctx = { orgId, agentId, agentName: agent.name, conversationId, contactKey, contactLabel: conv.contact_label, depth, userId: teamUserId };
   const runs = [];
   const totals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
   let reply = '';
@@ -385,6 +392,16 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
     for (const block of toolUses) {
       if (block.name === 'lembrar' || block.name === 'esquecer') {
         results.push(await runMemoryTool(ctx, block));
+        continue;
+      }
+      if (SCHEDULE_TOOL_NAMES.has(block.name)) {
+        if (!teamUserId) {
+          results.push({ type: 'tool_result', tool_use_id: block.id, is_error: true, content: 'Agendamentos só podem ser criados pela equipe na plataforma.' });
+          continue;
+        }
+        const r = await runScheduleTool(ctx, block);
+        results.push(r.result);
+        if (r.run) runs.push(r.run);
         continue;
       }
       if (block.name === 'passar_tarefa') {

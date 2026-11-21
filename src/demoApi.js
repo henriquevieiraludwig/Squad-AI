@@ -6,6 +6,7 @@ import { PROVIDERS, ACTIONS, ACTION_BY_ID, PROVIDER_BY_ID, connectionFor } from 
 const KEY = 'squad-ai-demo-v2';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 import { AREAS } from '../shared/areas.js';
+import { validateSchedule, nextRunAt, describeSchedule } from '../shared/schedule.js';
 
 let state = null;
 
@@ -557,6 +558,47 @@ async function companyRoutes(s, method, path, body) {
       return { ok: true };
     }
     return { doc: { ...docView(d), preview: d.content.slice(0, 6000), truncated: d.content.length > 6000 } };
+  }
+
+  if (path === '/schedules' || (m = path.match(/^\/schedules\/(\d+)(\/run)?$/))) {
+    const me = u();
+    s.schedules ??= [];
+    const toRule = (x) => ({ frequency: x.frequency, run_time: x.runTime, weekdays: x.weekdays, day_of_month: x.dayOfMonth, run_date: x.runDate });
+    const view = (x) => {
+      const ag = s.agents.find((a) => a.id === x.agentId);
+      const next = x.active ? nextRunAt(toRule(x)) : null;
+      return { ...x, agentName: ag?.name, agentAvatar: ag?.avatar || 'avatar-1', description: describeSchedule(toRule(x)), nextRunAt: next ? next.toISOString() : null, createdBy: me.name };
+    };
+    const mine = s.schedules.filter((x) => x.orgId === me.orgId);
+    if (path === '/schedules' && method === 'GET') return { schedules: mine.map(view) };
+    const found = m ? mine.find((x) => x.id === Number(m[1])) : null;
+    if (m && !found) throw new ApiError('Tarefa não encontrada.', 404);
+    if (m?.[2] === '/run') {
+      found.lastRunAt = new Date().toISOString();
+      found.lastStatus = 'ok';
+      found.lastResult = 'Na demonstração a tarefa não chama a IA. Na plataforma, o agente executa a instrução com as ferramentas dele e o resultado aparece em Conversas.';
+      save();
+      return { ok: true };
+    }
+    if (method === 'DELETE') {
+      s.schedules = s.schedules.filter((x) => x !== found);
+      save();
+      return { ok: true };
+    }
+    const src = found && Object.keys(body).length === 1 && 'active' in body ? { ...found, active: body.active } : body;
+    const { fields, data } = validateSchedule(src);
+    const agentId = Number(src.agentId ?? found?.agentId);
+    if (!s.agents.some((a) => a.id === agentId && a.orgId === me.orgId)) fields.agentId = 'Escolha o agente.';
+    if (Object.keys(fields).length) throw new ApiError('Revise os campos destacados.', 400, fields);
+    if (found) {
+      Object.assign(found, data, { agentId });
+      save();
+      return { schedule: view(found) };
+    }
+    const x = { id: nextId(), orgId: me.orgId, agentId, ...data, lastRunAt: null, lastStatus: null, lastResult: null, conversationId: null };
+    s.schedules.push(x);
+    save();
+    return { schedule: view(x) };
   }
 
   if (path === '/processes' || (m = path.match(/^\/processes\/(\d+)$/))) {

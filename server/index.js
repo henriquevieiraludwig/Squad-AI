@@ -9,9 +9,11 @@ import { resolvePartner, ensureDefaultPartner } from './brand.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerOrgRoutes } from './routes/org.js';
 import { registerIntegrationRoutes } from './routes/integrations.js';
+import { registerScheduleRoutes } from './routes/schedules.js';
 import { registerPartnerRoutes } from './routes/partner.js';
 import { registerJobHandlers } from './job-handlers.js';
 import { startWorker } from './jobs.js';
+import { startScheduler } from './schedules.js';
 import { createToken } from './routes/auth.js';
 import { partnerBaseUrl } from './brand.js';
 
@@ -69,6 +71,7 @@ export function createApp() {
   registerAuthRoutes(app);
   registerOrgRoutes(app);
   registerIntegrationRoutes(app);
+  registerScheduleRoutes(app);
 
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
 
@@ -98,6 +101,7 @@ export async function start() {
   await bootstrapAdmin(platform);
   registerJobHandlers();
   await startWorker();
+  startScheduler();
   const app = createApp();
   return app.listen(PORT, () => {
     console.log(`Squad AI ouvindo em http://localhost:${PORT} (banco: ${db.kind})`);
