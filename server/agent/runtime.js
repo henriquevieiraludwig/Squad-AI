@@ -22,7 +22,12 @@ export class AgentError extends Error {
 }
 
 let client = null;
-const getClient = () => (client ||= new Anthropic());
+// Chaves de usuário (sk-ant-usr) não são presas a um workspace: aí o ID do workspace
+// vai no cabeçalho anthropic-workspace-id (variável ANTHROPIC_WORKSPACE_ID).
+const getClient = () =>
+  (client ||= new Anthropic(
+    process.env.ANTHROPIC_WORKSPACE_ID ? { defaultHeaders: { 'anthropic-workspace-id': process.env.ANTHROPIC_WORKSPACE_ID } } : {},
+  ));
 
 // ---------- Ferramentas do agente ----------
 

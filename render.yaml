@@ -27,6 +27,8 @@ services:
         sync: false # ex.: squadai.com.br (parceiros ganham parceiro.squadai.com.br)
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: ANTHROPIC_WORKSPACE_ID
+        sync: false # só para chave de usuário (sk-ant-usr): ID do workspace (wrkspc_...)
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
