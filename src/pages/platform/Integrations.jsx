@@ -4,6 +4,36 @@ import { api, DEMO } from '../../api.js';
 import { PROVIDER_BY_ID } from '../../../shared/catalog.js';
 import { IconCopy, IconAlert, IconCheck } from '../../components/Icons.jsx';
 import { PageHead, SearchInput, FilterChips, Monogram, ErrorState, LoadingRows, formatDate } from './common.jsx';
+import logoOutlook from '../../assets/logos/outlook.webp';
+import logoTeams from '../../assets/logos/teams.webp';
+import logoOnedrive from '../../assets/logos/onedrive.webp';
+import logoSharepoint from '../../assets/logos/sharepoint.webp';
+import logoGoogleDrive from '../../assets/logos/google-drive.webp';
+import logoGoogleChat from '../../assets/logos/google-chat.webp';
+import logoWhatsapp from '../../assets/logos/whatsapp.webp';
+import logoTelegram from '../../assets/logos/telegram.webp';
+
+// Cada serviço aparece como um cartão próprio. Por baixo, Microsoft e Google usam um único login por empresa:
+// conectar um cartão da família conecta todos os outros da mesma conta.
+const SERVICE_CARDS = [
+  { key: 'outlook', parent: 'microsoft', name: 'Outlook', logo: logoOutlook, services: ['Outlook', 'Calendário'], summary: 'E-mails e calendário do Outlook: enviar, buscar e responder e-mails, criar e consultar eventos com reunião no Teams.' },
+  { key: 'teams', parent: 'microsoft', name: 'Microsoft Teams', logo: logoTeams, services: ['Teams'], summary: 'Mensagens em canais das equipes e conversas diretas com pessoas da empresa.' },
+  { key: 'onedrive', parent: 'microsoft', name: 'OneDrive', logo: logoOnedrive, services: ['OneDrive'], summary: 'Buscar arquivos e salvar relatórios, atas e resumos no OneDrive.' },
+  { key: 'sharepoint', parent: 'microsoft', name: 'SharePoint', logo: logoSharepoint, services: ['SharePoint'], summary: 'Buscar documentos em todos os sites do SharePoint da empresa.' },
+  { key: 'gmail', parent: 'google', name: 'Gmail', monogram: 'M', services: ['Gmail'], summary: 'Enviar, buscar e responder e-mails pela conta Google da empresa.' },
+  { key: 'gcal', parent: 'google', name: 'Google Agenda', monogram: '31', services: ['Agenda'], summary: 'Criar eventos com link do Meet e consultar a agenda.' },
+  { key: 'gdrive', parent: 'google', name: 'Google Drive', logo: logoGoogleDrive, services: ['Drive'], summary: 'Criar documentos e buscar arquivos no Drive.' },
+  { key: 'gchat', parent: 'google', name: 'Google Chat', logo: logoGoogleChat, services: ['Google Chat'], summary: 'Enviar mensagens nos espaços do Google Chat.' },
+  { key: 'gsheets', parent: 'google', name: 'Google Planilhas', monogram: 'P', services: ['Planilhas'], summary: 'Criar, ler e atualizar planilhas.' },
+  { key: 'gdocs', parent: 'google', name: 'Google Docs', monogram: 'D', services: ['Documentos'], summary: 'Ler documentos e acrescentar texto.' },
+  { key: 'gslides', parent: 'google', name: 'Google Apresentações', monogram: 'A', services: ['Apresentações'], summary: 'Criar e ler apresentações.' },
+  { key: 'gforms', parent: 'google', name: 'Google Formulários', monogram: 'F', services: ['Formulários'], summary: 'Criar formulários e ler as respostas.' },
+];
+const PROVIDER_LOGOS = { whatsapp: logoWhatsapp, telegram: logoTelegram };
+const FAMILY = {
+  microsoft: { account: 'Microsoft', members: 'Outlook, Teams, OneDrive e SharePoint' },
+  google: { account: 'Google', members: 'Gmail, Agenda, Drive, Chat, Planilhas, Docs, Apresentações e Formulários' },
+};
 import { can } from '../../auth.jsx';
 
 export default function Integrations({ user, notify, refreshSummary }) {
@@ -35,7 +65,38 @@ export default function Integrations({ user, notify, refreshSummary }) {
   const oauthDone = params.get('conectado');
   const oauthError = params.get('erro');
 
-  const providers = data?.providers || [];
+  // Lista de cartões: serviços de Microsoft e Google separados; os demais como vêm.
+  const providers = useMemo(() => {
+    const list = data?.providers || [];
+    const byId = Object.fromEntries(list.map((p) => [p.id, p]));
+    const actions = data?.actions || [];
+    const cards = [];
+    for (const p of list) {
+      if (p.via) continue; // Teams e Google Chat já viram cartões próprios abaixo
+      if (FAMILY[p.id]) {
+        for (const c of SERVICE_CARDS.filter((x) => x.parent === p.id)) {
+          const restricted = (c.key === 'gmail' || c.key === 'gdrive') && p.note;
+          cards.push({
+            ...p,
+            id: c.key,
+            providerId: p.id,
+            name: c.name,
+            logo: c.logo,
+            monogram: c.monogram || c.name[0],
+            summary: c.summary,
+            services: null,
+            note: restricted ? p.note : null,
+            family: FAMILY[p.id],
+            actionCount: actions.filter((a) => a.provider === p.id && c.services.includes(a.service)).length,
+          });
+        }
+      } else {
+        cards.push({ ...p, providerId: p.id, logo: PROVIDER_LOGOS[p.id], services: p.id === 'slack' ? null : p.services });
+      }
+    }
+    void byId;
+    return cards;
+  }, [data]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return providers.filter((p) => {
@@ -48,12 +109,12 @@ export default function Integrations({ user, notify, refreshSummary }) {
   async function connectOAuth(p) {
     setBusy(p.id);
     try {
-      const { url, connected } = await api(`/integrations/${p.id}/oauth`, { method: 'POST' });
+      const { url, connected } = await api(`/integrations/${p.providerId || p.id}/oauth`, { method: 'POST' });
       if (connected) {
         // Demonstração: a conexão é simulada sem sair da página.
         await load();
         refreshSummary();
-        notify(`${p.name} conectado.`);
+        notify(p.family ? `Conta ${p.family.account} conectada: ${p.family.members} liberados.` : `${p.name} conectado.`);
         setBusy(null);
         return;
       }
@@ -67,10 +128,10 @@ export default function Integrations({ user, notify, refreshSummary }) {
   async function disconnect(p) {
     setBusy(p.id);
     try {
-      await api(`/integrations/${p.id}`, { method: 'DELETE' });
+      await api(`/integrations/${p.providerId || p.id}`, { method: 'DELETE' });
       await load();
       refreshSummary();
-      notify(`${p.name} desconectado. As ações dessa plataforma deixam de funcionar para os agentes.`);
+      notify(p.family ? `Conta ${p.family.account} desconectada: ${p.family.members} deixam de funcionar para os agentes.` : `${p.name} desconectado. As ações dessa plataforma deixam de funcionar para os agentes.`);
     } catch (err) {
       notify(err.message, 'error');
     } finally {
@@ -106,7 +167,9 @@ export default function Integrations({ user, notify, refreshSummary }) {
       {oauthDone && (
         <div className="alert alert-success page-alert" role="status">
           <IconCheck size={18} />
-          <span>{PROVIDER_BY_ID[oauthDone]?.name || oauthDone} conectado. Libere as ações nos agentes que vão usar essa conta.</span>
+          <span>
+            {FAMILY[oauthDone] ? `Conta ${FAMILY[oauthDone].account} conectada: ${FAMILY[oauthDone].members} liberados.` : `${PROVIDER_BY_ID[oauthDone]?.name || oauthDone} conectado.`} Libere as ações nos agentes que vão usar essa conta.
+          </span>
           <button className="alert-close" onClick={() => setParams({})} aria-label="Fechar aviso">
             ×
           </button>
@@ -153,7 +216,7 @@ export default function Integrations({ user, notify, refreshSummary }) {
       ) : filtered.length === 0 ? (
         <div className="panel empty">
           <h3>{group === 'conectadas' ? 'Nenhuma integração conectada ainda' : 'Nenhuma integração encontrada'}</h3>
-          <p>{group === 'conectadas' ? 'Comece pelo Microsoft 365 ou pelo Google Workspace.' : 'Tente outro termo de busca.'}</p>
+          <p>{group === 'conectadas' ? 'Comece pelo Outlook ou pelo Gmail: um login libera todos os apps da mesma conta.' : 'Tente outro termo de busca.'}</p>
         </div>
       ) : (
         <ul className="integration-grid">
@@ -161,7 +224,7 @@ export default function Integrations({ user, notify, refreshSummary }) {
             <IntegrationCard
               key={p.id}
               p={p}
-              parent={p.via ? PROVIDER_BY_ID[p.via] : null}
+              parent={null}
               agents={data.agents}
               busy={busy === p.id}
               confirming={confirmOff === p.id}
@@ -203,7 +266,7 @@ function IntegrationCard({ p, parent, agents, busy, confirming, onConnect, onAsk
   return (
     <li className={`integration ${p.connected ? 'is-connected' : ''}`}>
       <div className="integration-head">
-        <Monogram letter={p.monogram} />
+        {p.logo ? <img src={p.logo} alt="" className="integration-logo" /> : <Monogram letter={p.monogram} />}
         <div className="integration-title">
           <h3>{p.name}</h3>
           {status}
@@ -221,10 +284,11 @@ function IntegrationCard({ p, parent, agents, busy, confirming, onConnect, onAsk
 
       {p.connected && p.accountLabel && (
         <p className="integration-account">
-          {p.via ? `Pela conta ${p.accountLabel} do ${parent.name}` : `Conta ${p.accountLabel}`}
-          {p.connectedAt && !p.via && <>, conectada em {formatDate(p.connectedAt)}</>}
+          Conta {p.accountLabel}
+          {p.connectedAt && <>, conectada em {formatDate(p.connectedAt)}</>}
         </p>
       )}
+      {p.family && <p className="integration-family muted">Mesmo login da conta {p.family.account}: conectar aqui libera todos os apps {p.family.account}.</p>}
 
       {!p.platformReady && !p.connected && (
         <p className="integration-note">Esta integração ainda não foi liberada na plataforma. Fale com o suporte.</p>
@@ -245,9 +309,9 @@ function IntegrationCard({ p, parent, agents, busy, confirming, onConnect, onAsk
               <button className="btn btn-ghost btn-sm" onClick={onCancelDisconnect}>
                 Cancelar
               </button>
-              <button className="btn btn-danger btn-sm" onClick={onDisconnect} disabled={busy}>
+              <button className="btn btn-danger btn-sm" onClick={onDisconnect} disabled={busy} title={p.family ? `Desconecta ${p.family.members}` : undefined}>
                 {busy && <span className="spinner" aria-hidden="true" />}
-                Confirmar desconexão
+                {p.family ? `Desconectar conta ${p.family.account}` : 'Confirmar desconexão'}
               </button>
             </span>
           ) : (

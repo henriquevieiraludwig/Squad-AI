@@ -9,7 +9,7 @@ export const PROVIDERS = [
     auth: 'oauth',
     monogram: 'M',
     summary: 'Outlook, Calendário, Teams, OneDrive e SharePoint da conta Microsoft da empresa.',
-    services: ['Outlook', 'Calendário', 'Teams', 'OneDrive e SharePoint'],
+    services: ['Outlook', 'Calendário', 'Teams', 'OneDrive', 'SharePoint'],
   },
   {
     id: 'google',
@@ -158,7 +158,7 @@ export const ACTIONS = [
   {
     id: 'onedrive_search_files',
     provider: 'microsoft',
-    service: 'OneDrive e SharePoint',
+    service: 'OneDrive',
     label: 'Buscar arquivos no OneDrive',
     risk: 'read',
     description: 'Busca arquivos no OneDrive pelo nome ou conteúdo. Retorna nome, link e data de alteração.',
@@ -186,7 +186,7 @@ export const ACTIONS = [
   {
     id: 'sharepoint_search_files',
     provider: 'microsoft',
-    service: 'OneDrive e SharePoint',
+    service: 'SharePoint',
     label: 'Buscar arquivos no SharePoint',
     risk: 'read',
     description: 'Busca documentos em todos os sites do SharePoint e no OneDrive a que a conta tem acesso, pelo nome ou conteúdo. Retorna nome, link e um trecho.',
@@ -195,7 +195,7 @@ export const ACTIONS = [
   {
     id: 'onedrive_upload_file',
     provider: 'microsoft',
-    service: 'OneDrive e SharePoint',
+    service: 'OneDrive',
     label: 'Salvar arquivo no OneDrive',
     risk: 'write',
     description: 'Cria ou substitui um arquivo de texto na pasta "Squad AI" do OneDrive (até 4 MB). Use para salvar relatórios, atas e resumos.',

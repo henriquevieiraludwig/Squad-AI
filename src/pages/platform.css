@@ -2577,3 +2577,16 @@
 .new-conv-menu > .muted {
   padding: 2px 8px 6px;
 }
+
+/* Logo do serviço no cartão de integração */
+.integration-logo {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.integration-family {
+  font-size: 0.85rem;
+  margin: 0;
+}
