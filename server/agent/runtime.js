@@ -219,7 +219,7 @@ const textOf = (content) =>
     .join('\n')
     .trim();
 
-async function runAgentUnlocked({ orgId, agentId, conversationId, text, author = 'contato' }) {
+async function runAgentUnlocked({ orgId, agentId, conversationId, text, content = null, author = 'contato' }) {
   const agent = await db.get('SELECT * FROM agents WHERE id = $1 AND org_id = $2', [agentId, orgId]);
   if (!agent) throw new AgentError('Agente não encontrado.', 404);
   await assertCanRunAgent(orgId);
@@ -250,8 +250,10 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, author =
   const { stable: system, dynamic: context } = systemPrompt({ agent, orgName: org.name, channel: conv.channel, knowledge, memories, person });
 
   const messages = await loadHistory(conversationId);
-  messages.push({ role: 'user', content: text });
-  await appendMessage(conversationId, 'user', text, author);
+  // "content" traz texto + anexos (imagens, PDFs, documentos); sem anexos, é só o texto.
+  const userContent = content || text;
+  messages.push({ role: 'user', content: userContent });
+  await appendMessage(conversationId, 'user', userContent, author);
   // Avisos do sistema desta vez: resultado de aprovações e o contexto (memória, canal, data) se mudou.
   const notes = [];
   const note = await pendingDecisionNote(conversationId);

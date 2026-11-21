@@ -447,8 +447,10 @@ async function integrationRoutes(s, method, path, body) {
       };
     }
     if (m[2] === '/chat' && method === 'POST') {
-      const text = clean(body.message, 4000);
-      if (!text) throw new ApiError('Escreva uma mensagem.', 400);
+      const files = Array.isArray(body.attachments) ? body.attachments.map((a) => a.name) : [];
+      let text = clean(body.message, 4000);
+      if (!text && !files.length) throw new ApiError('Escreva uma mensagem.', 400);
+      if (files.length) text = `${text}${text ? '\n' : ''}📎 ${files.join(', ')}`;
       let conversationId = Number(body.conversationId) || null;
       if (!conversationId && !body.newConversation) {
         conversationId = [...s.conversations].reverse().find((c) => c.agentId === agent.id && c.userId === u.id)?.id || null;
@@ -458,7 +460,9 @@ async function integrationRoutes(s, method, path, body) {
         s.conversations.push({ id: conversationId, orgId: u.orgId, agentId: agent.id, userId: u.id });
       }
       await new Promise((r) => setTimeout(r, 700));
-      const out = simulateChat(s, u, agent, text);
+      const out = files.length
+        ? { reply: `Recebi ${files.length === 1 ? 'o arquivo' : 'os arquivos'} **${files.join(', ')}** 📎\n\nNa demonstração eu não leio o conteúdo; na plataforma de verdade, eu leio imagens, PDFs, Word, TXT e CSV e respondo sobre eles.`, actions: [] }
+        : simulateChat(s, u, agent, text);
       const conv = s.conversations.find((c) => c.id === conversationId);
       if (conv) {
         conv.messages ??= [];
@@ -602,11 +606,12 @@ async function companyRoutes(s, method, path, body) {
     const me = u();
     const convs = s.conversations.filter((c) => c.orgId === me.orgId && c.messages?.length);
     const agentName = (id) => s.agents.find((a) => a.id === id)?.name;
+    const agentAvatar = (id) => s.agents.find((a) => a.id === id)?.avatar || 'avatar-1';
     if ((m = path.match(/^\/conversations\/(\d+)$/))) {
       const c = convs.find((x) => x.id === Number(m[1]));
       if (!c) throw new ApiError('Conversa não encontrada.', 404);
       return {
-        conversation: { id: c.id, channel: 'teste', contact: c.contact, handledBy: 'agente', agentName: agentName(c.agentId), canReply: false, agentId: c.agentId, canContinue: !c.userId || c.userId === me.id },
+        conversation: { id: c.id, channel: 'teste', contact: c.contact, handledBy: 'agente', agentName: agentName(c.agentId), agentAvatar: agentAvatar(c.agentId), canReply: false, agentId: c.agentId, canContinue: !c.userId || c.userId === me.id },
         messages: c.messages,
         actions: [],
       };
@@ -615,7 +620,7 @@ async function companyRoutes(s, method, path, body) {
       return {
         conversations: convs
           .sort((a, b) => (b.lastMessageAt > a.lastMessageAt ? 1 : -1))
-          .map((c) => ({ id: c.id, channel: 'teste', contact: c.contact, handledBy: 'agente', agentName: agentName(c.agentId), lastMessageAt: c.lastMessageAt, preview: c.messages.at(-1)?.text.slice(0, 140), pending: 0 })),
+          .map((c) => ({ id: c.id, channel: 'teste', contact: c.contact, handledBy: 'agente', agentName: agentName(c.agentId), agentAvatar: agentAvatar(c.agentId), lastMessageAt: c.lastMessageAt, preview: c.messages.at(-1)?.text.slice(0, 140), pending: 0 })),
       };
     }
   }

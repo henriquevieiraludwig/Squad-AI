@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import FormattedText from '../../components/FormattedText.jsx';
+import ChatComposer from '../../components/ChatComposer.jsx';
+import AgentAvatar from '../../components/AgentAvatar.jsx';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, DEMO } from '../../api.js';
 import { IconChat, IconSend } from '../../components/Icons.jsx';
 import { PageHead, EmptyState, LoadingRows, RUN_STATUS } from './common.jsx';
 
-export default function TestChat({ agents, openCreate, refreshSummary }) {
+export default function TestChat({ agents, openCreate, refreshSummary, notify }) {
   const [params, setParams] = useSearchParams();
   const agentId = Number(params.get('agente')) || agents?.[0]?.id || null;
   const agent = agents?.find((a) => a.id === agentId);
@@ -44,31 +46,34 @@ export default function TestChat({ agents, openCreate, refreshSummary }) {
     endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
   }, [messages, sending]);
 
-  async function send(e) {
-    e?.preventDefault();
-    const text = draft.trim();
-    if (!text || sending) return;
+  // Envia texto e anexos. Devolve false se falhar (a caixa mantém os arquivos para tentar de novo).
+  async function send(text, attachments = [], files = []) {
+    if (sending) return false;
     setDraft('');
     setError('');
-    setMessages((m) => [...m, { role: 'user', text }]);
+    const names = files.map((f) => f.name);
+    setMessages((m) => [...m, { role: 'user', text: text || '', files: names }]);
     setSending(true);
     try {
       const res = await api(`/agents/${agentId}/chat`, {
         method: 'POST',
-        body: { message: text, conversationId, newConversation: freshRef.current },
+        body: { message: text, attachments, conversationId, newConversation: freshRef.current },
       });
       freshRef.current = false;
       setConversationId(res.conversationId);
       setMessages((m) => [...m, { role: 'agent', text: res.reply, actions: res.actions }]);
       if (res.actions?.length) refreshSummary();
+      return true;
     } catch (err) {
       setError(err.message);
       setMessages((m) => m.slice(0, -1));
       setDraft(text);
+      return false;
     } finally {
       setSending(false);
     }
   }
+
 
   if (!agents) return <LoadingRows rows={3} />;
   if (!agents.length)
@@ -108,9 +113,12 @@ export default function TestChat({ agents, openCreate, refreshSummary }) {
 
       <section className="chat-panel" aria-label={`Conversa com ${agent?.name}`}>
         <div className="chat-panel-head">
-          <div>
-            <strong>{agent?.name}</strong>
-            <span className="muted">{agent?.area}</span>
+          <div className="chat-agent">
+            <AgentAvatar avatar={agent?.avatar} name={agent?.name} size={40} />
+            <div>
+              <strong>{agent?.name}</strong>
+              <span className="muted">{agent?.area}</span>
+            </div>
           </div>
           <div className="chat-panel-links">
             <Link to={`/app/agentes/${agentId}`} className="link">
@@ -150,7 +158,8 @@ export default function TestChat({ agents, openCreate, refreshSummary }) {
           )}
           {messages.map((m, i) => (
             <div key={i} className={`msg msg-${m.role}`}>
-              {m.role === 'agent' ? <FormattedText text={m.text} /> : <p>{m.text}</p>}
+              {m.role === 'agent' ? <FormattedText text={m.text} /> : m.text && <p>{m.text}</p>}
+              {m.files?.length > 0 && <p className="msg-files">📎 {m.files.join(', ')}</p>}
               {m.actions?.map((a) => {
                 const st = RUN_STATUS[a.status];
                 return (
@@ -186,26 +195,15 @@ export default function TestChat({ agents, openCreate, refreshSummary }) {
           </div>
         )}
 
-        <form className="composer" onSubmit={send}>
-          <label htmlFor="chat-input" className="visually-hidden">
-            Mensagem para o agente
-          </label>
-          <textarea
-            id="chat-input"
-            className="input"
-            rows={2}
-            value={draft}
-            placeholder="Escreva como um colaborador ou cliente escreveria"
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) send(e);
-            }}
-          />
-          <button className="btn btn-primary" type="submit" disabled={sending || !draft.trim()}>
-            {sending ? <span className="spinner" aria-hidden="true" /> : <IconSend />}
-            Enviar
-          </button>
-        </form>
+        <ChatComposer
+          id="chat-input"
+          value={draft}
+          onChange={setDraft}
+          onSend={send}
+          sending={sending}
+          notify={notify}
+          placeholder="Escreva, dite pelo microfone ou anexe arquivos"
+        />
       </section>
     </>
   );

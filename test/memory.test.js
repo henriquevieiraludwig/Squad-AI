@@ -130,6 +130,39 @@ describe('memória do agente', () => {
     assert.notEqual(other.body.conversationId, convId);
   });
 
+  it('lê anexos: imagem e PDF vão direto para o modelo, texto é extraído', async () => {
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const pdf = `data:application/pdf;base64,${Buffer.from('%PDF-1.4 teste').toString('base64')}`;
+    const txt = `data:text/plain;base64,${Buffer.from('Faturamento de outubro: R$ 120 mil').toString('base64')}`;
+    P.fakes.claude.queue.push(text('Li os arquivos.'));
+    const r = await ana.post(`/api/agents/${agentId}/chat`, {
+      message: 'Resuma estes arquivos',
+      attachments: [
+        { name: 'grafico.png', type: 'image/png', data: png },
+        { name: 'contrato.pdf', type: 'application/pdf', data: pdf },
+        { name: 'notas.txt', type: 'text/plain', data: txt },
+      ],
+    });
+    assert.equal(r.status, 200);
+    const req = P.fakes.claude.requests.at(-1);
+    const last = [...req.messages].reverse().find((m) => m.role === 'user' && Array.isArray(m.content) && m.content.some((b) => b.type === 'image'));
+    const types = last.content.map((b) => b.type);
+    assert.deepEqual(types, ['text', 'image', 'document', 'text']);
+    assert.match(last.content[0].text, /Resuma estes arquivos[\s\S]*Anexos: grafico\.png, contrato\.pdf, notas\.txt/);
+    assert.equal(last.content[2].title, 'contrato.pdf');
+    assert.match(last.content[3].text, /<arquivo nome="notas\.txt">[\s\S]*R\$ 120 mil/);
+
+    // No histórico da conversa aparece o texto com a lista de anexos.
+    const hist = (await ana.get(`/api/agents/${agentId}/chat`)).body.messages;
+    assert.ok(hist.some((m) => m.role === 'user' && /📎 Anexos: grafico\.png/.test(m.text)));
+
+    const bad = await ana.post(`/api/agents/${agentId}/chat`, { message: 'veja', attachments: [{ name: 'planilha.xlsx', type: 'application/vnd.ms-excel', data: txt }] });
+    assert.equal(bad.status, 400);
+    assert.match(bad.body.error, /planilha\.xlsx/);
+    const many = await ana.post(`/api/agents/${agentId}/chat`, { message: 'x', attachments: Array.from({ length: 6 }, (_, i) => ({ name: `a${i}.txt`, type: 'text/plain', data: txt })) });
+    assert.equal(many.status, 400);
+  });
+
   it('outra empresa não vê nem apaga a memória', async () => {
     const out = P.client();
     await out.post('/api/auth/signup', { name: 'Zé', company: 'Outra', email: 'ze@outra.com', password: 'senhaforte1' });

@@ -37,6 +37,8 @@ export function createApp() {
     req.rawBody = buf;
   };
   app.use('/api/knowledge', express.json({ limit: '15mb' }));
+  // Mensagens com anexos (até 5 arquivos de 10 MB, em base64).
+  app.use(/^\/api\/agents\/\d+\/chat$/, express.json({ limit: '70mb' }));
   app.use(express.json({ limit: '1mb', verify: keepRaw }));
   app.use(cookieParser());
 

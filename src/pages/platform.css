@@ -1008,6 +1008,22 @@
   display: grid;
 }
 
+.chat-agent {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat-agent > div {
+  display: grid;
+}
+
+.msg-files {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
 .chat-panel-head strong {
   font-weight: 600;
 }
@@ -2101,4 +2117,111 @@
 /* Na caixa de conversas, as respostas do agente também usam balão largo. */
 .conv-log .msg {
   max-width: min(88%, 900px);
+}
+
+/* Caixa de mensagem com anexos e microfone */
+.composer-rich {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.composer-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.composer-row textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 46px;
+  resize: none;
+}
+
+.composer-icon {
+  width: 44px;
+  height: 46px;
+  padding: 0;
+  justify-content: center;
+  flex: none;
+}
+
+.composer-icon.is-listening {
+  color: #fff;
+  background: #c0392b;
+  border-color: #c0392b;
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(192, 57, 43, 0);
+  }
+}
+
+.attach-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 6px 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 0.85rem;
+}
+
+.attach-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.attach-chip button {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.attach-chip button:hover {
+  background: var(--line);
+}
+
+@media (max-width: 560px) {
+  .composer-row .btn-primary {
+    padding-inline: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-icon.is-listening {
+    animation: none;
+  }
+}
+
+.conv-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }

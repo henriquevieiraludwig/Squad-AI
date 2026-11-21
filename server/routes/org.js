@@ -10,6 +10,7 @@ import { createToken, sendTemplate } from './auth.js';
 
 import { AREAS } from '../../shared/areas.js';
 import { saveMemory, deleteMemory, MEMORY_MAX_CHARS } from '../agent/memory.js';
+import { buildUserContent, AttachmentError } from '../agent/attachments.js';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const clean = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 const DAY = 86_400_000;
@@ -175,7 +176,15 @@ export function registerOrgRoutes(app) {
     if (!agent) return;
     if (!rateLimit({ key: `chat:${req.user.id}`, max: 20, windowMs: 60_000 })) return res.status(429).json({ error: 'Muitas mensagens em pouco tempo. Aguarde um minuto.' });
     const message = clean(req.body?.message, 4000);
-    if (!message) return res.status(400).json({ error: 'Escreva uma mensagem.' });
+    const attachments = Array.isArray(req.body?.attachments) ? req.body.attachments : [];
+    if (!message && !attachments.length) return res.status(400).json({ error: 'Escreva uma mensagem.' });
+    let content = null;
+    try {
+      content = attachments.length ? await buildUserContent(message, attachments) : null;
+    } catch (err) {
+      if (err instanceof AttachmentError) return res.status(400).json({ error: err.message });
+      throw err;
+    }
     let conversationId = Number(req.body?.conversationId) || null;
     if (conversationId) {
       const conv = await db.get('SELECT id, external_id FROM conversations WHERE id = $1 AND org_id = $2 AND agent_id = $3 AND channel = $4', [conversationId, req.user.orgId, agent.id, 'teste']);
@@ -195,7 +204,7 @@ export function registerOrgRoutes(app) {
         forceNew: Boolean(req.body?.newConversation),
       });
     }
-    const { reply, actions } = await runAgent({ orgId: req.user.orgId, agentId: agent.id, conversationId, text: message, author: 'contato' });
+    const { reply, actions } = await runAgent({ orgId: req.user.orgId, agentId: agent.id, conversationId, text: message, content, author: 'contato' });
     res.json({ conversationId, reply, actions });
   }));
 
@@ -414,7 +423,7 @@ export function registerOrgRoutes(app) {
       where += ` AND (c.contact_label ILIKE $${params.length} OR a.name ILIKE $${params.length})`;
     }
     const rows = await db.all(
-      `SELECT c.id, c.channel, c.contact_label, c.handled_by, c.last_message_at, a.name AS agent_name, u.name AS assigned_name,
+      `SELECT c.id, c.channel, c.contact_label, c.handled_by, c.last_message_at, a.name AS agent_name, a.avatar AS agent_avatar, u.name AS assigned_name,
               (SELECT content FROM messages m WHERE m.conversation_id = c.id AND m.author IN ('contato', 'agente', 'humano') ORDER BY m.id DESC LIMIT 1) AS last_content,
               (SELECT COUNT(*)::int FROM action_runs r WHERE r.conversation_id = c.id AND r.status = 'pendente') AS pending
          FROM conversations c JOIN agents a ON a.id = c.agent_id LEFT JOIN users u ON u.id = c.assigned_user
@@ -430,6 +439,7 @@ export function registerOrgRoutes(app) {
         handledBy: r.handled_by,
         assignedTo: r.assigned_name,
         agentName: r.agent_name,
+        agentAvatar: r.agent_avatar || null,
         lastMessageAt: r.last_message_at,
         preview: previewOf(r.last_content),
         pending: r.pending,
@@ -439,7 +449,7 @@ export function registerOrgRoutes(app) {
 
   app.get('/api/conversations/:id', requireOrg(), h(async (req, res) => {
     const c = await db.get(
-      `SELECT c.*, a.name AS agent_name, u.name AS assigned_name FROM conversations c JOIN agents a ON a.id = c.agent_id
+      `SELECT c.*, a.name AS agent_name, a.avatar AS agent_avatar, u.name AS assigned_name FROM conversations c JOIN agents a ON a.id = c.agent_id
          LEFT JOIN users u ON u.id = c.assigned_user WHERE c.id = $1 AND c.org_id = $2`,
       [Number(req.params.id), req.user.orgId],
     );
@@ -461,6 +471,7 @@ export function registerOrgRoutes(app) {
         handledBy: c.handled_by,
         assignedTo: c.assigned_name,
         agentName: c.agent_name,
+        agentAvatar: c.agent_avatar || null,
         agentId: c.agent_id,
         canReply: c.channel !== 'teste',
         // Conversa de teste da própria pessoa: pode continuar a qualquer momento.

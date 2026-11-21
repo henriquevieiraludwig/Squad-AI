@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import FormattedText from '../../components/FormattedText.jsx';
+import ChatComposer from '../../components/ChatComposer.jsx';
+import AgentAvatar from '../../components/AgentAvatar.jsx';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { can } from '../../auth.jsx';
@@ -88,7 +90,10 @@ export default function Conversations({ user, notify, refreshSummary }) {
                     <span className="conv-preview">{c.preview || 'Sem mensagens de texto'}</span>
                     <span className="conv-meta">
                       <span className="tag">{CHANNEL_LABEL[c.channel] || c.channel}</span>
-                      <span className="muted">{c.agentName}</span>
+                      <span className="conv-agent muted">
+                        <AgentAvatar avatar={c.agentAvatar} name={c.agentName} size={20} />
+                        {c.agentName}
+                      </span>
                       {c.handledBy === 'humano' && <span className="pill pill-warn">Com {c.assignedTo || 'a equipe'}</span>}
                       {c.pending > 0 && <span className="pill pill-warn">{c.pending} aprovação pendente</span>}
                     </span>
@@ -141,25 +146,26 @@ function ConversationDetail({ id, user, notify, onChange, onBack }) {
   }, [data?.messages.length, pending]);
 
   // Continua a conversa de teste com o agente, não importa quando ela foi feita.
-  async function continueChat(e) {
-    e.preventDefault();
-    const text = draft.trim();
-    if (!text || sending) return;
+  async function continueChat(text, attachments = [], files = []) {
+    if (sending) return false;
     setSending(true);
-    setPending(text);
+    setPending([text, files.length ? `📎 ${files.map((f) => f.name).join(', ')}` : ''].filter(Boolean).join('\n'));
     setDraft('');
     try {
-      await api(`/agents/${data.conversation.agentId}/chat`, { method: 'POST', body: { message: text, conversationId: id } });
+      await api(`/agents/${data.conversation.agentId}/chat`, { method: 'POST', body: { message: text, attachments, conversationId: id } });
       await load();
       onChange();
+      return true;
     } catch (err) {
       notify(err.message, 'error');
       setDraft(text);
+      return false;
     } finally {
       setPending(null);
       setSending(false);
     }
   }
+
 
   async function act(path, body, msg) {
     setBusy(true);
@@ -194,11 +200,14 @@ function ConversationDetail({ id, user, notify, onChange, onBack }) {
         <button className="btn btn-ghost btn-sm conv-back" onClick={onBack}>
           Voltar
         </button>
-        <div>
-          <strong>{c.contact || 'Contato'}</strong>
-          <span className="muted">
-            {CHANNEL_LABEL[c.channel] || c.channel}, agente {c.agentName}
-          </span>
+        <div className="chat-agent">
+          <AgentAvatar avatar={c.agentAvatar} name={c.agentName} size={40} />
+          <div>
+            <strong>{c.contact || 'Contato'}</strong>
+            <span className="muted">
+              {CHANNEL_LABEL[c.channel] || c.channel}, agente {c.agentName}
+            </span>
+          </div>
         </div>
         {canAttend && c.canReply && (
           <div className="conv-detail-actions">
@@ -254,26 +263,15 @@ function ConversationDetail({ id, user, notify, onChange, onBack }) {
       </div>
 
       {c.canContinue && (
-        <form className="composer" onSubmit={continueChat}>
-          <label htmlFor="continue-chat" className="visually-hidden">
-            Continuar a conversa com o agente
-          </label>
-          <textarea
-            id="continue-chat"
-            className="input"
-            rows={2}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) continueChat(e);
-            }}
-            placeholder={`Continuar a conversa com ${c.agentName}`}
-          />
-          <button type="submit" className="btn btn-primary" disabled={sending || !draft.trim()}>
-            {sending ? <span className="spinner" aria-hidden="true" /> : <IconSend />}
-            Enviar
-          </button>
-        </form>
+        <ChatComposer
+          id="continue-chat"
+          value={draft}
+          onChange={setDraft}
+          onSend={continueChat}
+          sending={sending}
+          notify={notify}
+          placeholder={`Continuar a conversa com ${c.agentName}: escreva, dite ou anexe arquivos`}
+        />
       )}
 
       {canAttend && c.canReply && human && (
