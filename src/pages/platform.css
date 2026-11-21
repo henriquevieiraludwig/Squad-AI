@@ -1066,6 +1066,10 @@
 
 .msg {
   max-width: min(76%, 640px);
+  min-width: 0;
+  /* Palavras e links muito longos quebram dentro do balão. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
   padding: 10px 14px;
   border-radius: 12px;
   line-height: 1.5;
