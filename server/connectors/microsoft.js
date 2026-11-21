@@ -1,4 +1,4 @@
-// Microsoft 365 via Microsoft Graph: Outlook, Calendário, Teams e OneDrive.
+// Microsoft 365 via Microsoft Graph: Outlook, Calendário, Teams, OneDrive e SharePoint.
 import { request, splitEmails, localDateTime, TIMEZONE, ConnectorError } from './http.js';
 
 const authBase = (cfg) => `https://login.microsoftonline.com/${cfg.tenant || 'common'}/oauth2/v2.0`;
@@ -12,7 +12,11 @@ const SCOPES = [
   'Team.ReadBasic.All',
   'Channel.ReadBasic.All',
   'ChannelMessage.Send',
+  'Chat.Create',
+  'ChatMessage.Send',
   'Files.Read.All',
+  'Files.ReadWrite',
+  'Sites.Read.All',
 ].join(' ');
 
 const P = 'Microsoft 365';
@@ -92,8 +96,9 @@ export const actions = {
 
   async outlook_search_email({ token }, { query }) {
     const q = encodeURIComponent(`"${String(query).replace(/"/g, '')}"`);
-    const data = await g(`/me/messages?$search=${q}&$top=10&$select=subject,from,receivedDateTime,bodyPreview,webLink`, token);
+    const data = await g(`/me/messages?$search=${q}&$top=10&$select=id,subject,from,receivedDateTime,bodyPreview,webLink`, token);
     return (data.value || []).map((m) => ({
+      id: m.id,
       assunto: m.subject,
       de: m.from?.emailAddress?.address,
       recebido_em: m.receivedDateTime,
@@ -156,5 +161,57 @@ export const actions = {
     const q = String(query).replace(/'/g, "''");
     const data = await g(`/me/drive/root/search(q='${encodeURIComponent(q)}')?$top=10&$select=name,webUrl,lastModifiedDateTime,size`, token);
     return (data.value || []).map((f) => ({ nome: f.name, link: f.webUrl, alterado_em: f.lastModifiedDateTime }));
+  },
+
+  async outlook_reply_email({ token }, { messageId, body }) {
+    await g(`/me/messages/${encodeURIComponent(messageId)}/reply`, token, { method: 'POST', body: { comment: body } });
+    return { respondido: true };
+  },
+
+  // Mensagem direta (chat 1:1) para uma pessoa da organização, pelo e-mail dela.
+  async teams_send_chat_message({ token }, { to, text }) {
+    const email = splitEmails(to)[0];
+    if (!email) throw new ConnectorError('Informe o e-mail da pessoa.');
+    const me = await g('/me?$select=id', token);
+    const bind = (id) => ({
+      '@odata.type': '#microsoft.graph.aadUserConversationMember',
+      roles: ['owner'],
+      'user@odata.bind': `${GRAPH}/users('${encodeURIComponent(id)}')`,
+    });
+    // Se o chat 1:1 já existe, o Graph devolve o mesmo.
+    const chat = await g('/chats', token, { method: 'POST', body: { chatType: 'oneOnOne', members: [bind(me.id), bind(email)] } });
+    const msg = await g(`/chats/${encodeURIComponent(chat.id)}/messages`, token, {
+      method: 'POST',
+      body: { body: { contentType: 'text', content: text } },
+    });
+    return { enviado: true, para: email, id: msg.id, link: msg.webUrl };
+  },
+
+  // Busca em todo o SharePoint e OneDrive a que a conta tem acesso.
+  async sharepoint_search_files({ token }, { query }) {
+    const data = await g('/search/query', token, {
+      method: 'POST',
+      body: { requests: [{ entityTypes: ['driveItem'], query: { queryString: String(query) }, from: 0, size: 10 }] },
+    });
+    const hits = data?.value?.[0]?.hitsContainers?.[0]?.hits || [];
+    return hits.map((h) => ({
+      nome: h.resource?.name,
+      link: h.resource?.webUrl,
+      alterado_em: h.resource?.lastModifiedDateTime,
+      trecho: (h.summary || '').replace(/<[^>]+>/g, ''),
+    }));
+  },
+
+  // Cria (ou substitui) um arquivo de texto na pasta "Squad AI" do OneDrive. Envio simples, até 4 MB.
+  async onedrive_upload_file({ token }, { fileName, content }) {
+    const name = String(fileName).replace(/[\\/:*?"<>|#%]/g, '-').trim();
+    if (!name) throw new ConnectorError('Informe o nome do arquivo.');
+    if (Buffer.byteLength(content, 'utf8') > 4 * 1024 * 1024) throw new ConnectorError('O arquivo passa de 4 MB.');
+    const f = await g(`/me/drive/root:/Squad%20AI/${encodeURIComponent(name)}:/content`, token, {
+      method: 'PUT',
+      raw: content,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+    return { salvo: true, nome: f.name, link: f.webUrl };
   },
 };

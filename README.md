@@ -92,6 +92,25 @@ test/                 testes de ponta a ponta
 | Aprovador | Aprova ou recusa ações e atende conversas |
 | Membro | Conversa com os agentes e acompanha |
 
+## Permissões dos apps Microsoft e Google
+
+**Microsoft Entra ID** (app multilocatário, permissões delegadas do Microsoft Graph):
+`offline_access`, `User.Read`, `Mail.Read`, `Mail.Send`, `Calendars.ReadWrite`, `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `ChannelMessage.Send`, `Chat.Create`, `ChatMessage.Send`, `Files.Read.All`, `Files.ReadWrite`, `Sites.Read.All`.
+O administrador de TI de cada cliente precisa aprovar `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `Files.Read.All` e `Sites.Read.All`.
+
+**Google Cloud** (tela de consentimento OAuth):
+- Escopos usados por padrão: `openid`, `email`, `gmail.send`, `calendar.events`, `chat.spaces.readonly`, `chat.messages.create`, `drive.file`.
+- Escopos restritos, só depois da avaliação de segurança anual: `gmail.readonly`, `drive.readonly`. Eles liberam buscar e responder e-mails e buscar arquivos.
+
+| Serviço | Ações do agente |
+| --- | --- |
+| Outlook | Enviar, buscar e responder e-mails; criar e listar eventos |
+| Teams | Listar canais, publicar em canal, mensagem direta (1:1) |
+| OneDrive e SharePoint | Buscar arquivos (OneDrive e todos os sites), salvar arquivo de texto |
+| Gmail e Agenda | Enviar, buscar e responder e-mails; criar e listar eventos |
+| Drive | Criar documento; buscar arquivos (escopo restrito) |
+| Google Chat | Listar espaços e enviar mensagem |
+
 ## Segurança e LGPD
 
 - Senhas com `scrypt`; sessão em cookie `httpOnly` ligada ao parceiro do domínio.

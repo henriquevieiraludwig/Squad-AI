@@ -15,11 +15,14 @@ export const PUBLIC_URL = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL
 export const APP_URL = (process.env.APP_URL || PUBLIC_URL).replace(/\/$/, '');
 
 // Faz a chamada HTTP e transforma falhas em mensagens que o agente e a equipe entendem.
-export async function request(url, { method = 'GET', token, body, form, headers = {}, provider = 'serviço' } = {}) {
+export async function request(url, { method = 'GET', token, body, form, raw, headers = {}, provider = 'serviço' } = {}) {
   const h = { Accept: 'application/json', ...headers };
   if (token) h.Authorization = `Bearer ${token}`;
   let payload;
-  if (form) {
+  if (raw !== undefined) {
+    // Corpo já pronto (upload de arquivo): o Content-Type vem em headers.
+    payload = raw;
+  } else if (form) {
     h['Content-Type'] = 'application/x-www-form-urlencoded';
     payload = new URLSearchParams(form).toString();
   } else if (body !== undefined) {

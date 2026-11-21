@@ -9,6 +9,8 @@ const BASE_SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/chat.spaces.readonly',
   'https://www.googleapis.com/auth/chat.messages.create',
+  // Só os arquivos que o próprio app cria (não é escopo restrito).
+  'https://www.googleapis.com/auth/drive.file',
 ];
 // Escopos restritos: exigem a avaliação de segurança anual (CASA). Só com cfg.restricted.
 const RESTRICTED_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/drive.readonly'];
@@ -101,7 +103,7 @@ export const actions = {
         { token, provider: P },
       );
       const h = Object.fromEntries((msg.payload?.headers || []).map((x) => [x.name, x.value]));
-      out.push({ assunto: h.Subject, de: h.From, data: h.Date, previa: msg.snippet });
+      out.push({ id: m.id, assunto: h.Subject, de: h.From, data: h.Date, previa: msg.snippet });
     }
     return out;
   },
@@ -158,5 +160,58 @@ export const actions = {
     if (!/^spaces\/[\w-]+$/.test(space)) throw new ConnectorError('O espaço precisa estar no formato spaces/XXXX.');
     const msg = await request(`https://chat.googleapis.com/v1/${space}/messages`, { method: 'POST', token, provider: P, body: { text } });
     return { enviado: true, id: msg.name };
+  },
+
+  async gmail_reply({ token }, { messageId, body }) {
+    const orig = await request(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Reply-To&metadataHeaders=Message-ID`,
+      { token, provider: P },
+    );
+    const h = Object.fromEntries((orig.payload?.headers || []).map((x) => [x.name.toLowerCase(), x.value]));
+    const to = h['reply-to'] || h.from;
+    const subject = /^re:/i.test(h.subject || '') ? h.subject : `Re: ${h.subject || ''}`;
+    const mime = [
+      `To: ${to}`,
+      `Subject: ${mimeHeader(subject)}`,
+      ...(h['message-id'] ? [`In-Reply-To: ${h['message-id']}`, `References: ${h['message-id']}`] : []),
+      'MIME-Version: 1.0',
+      'Content-Type: text/plain; charset="UTF-8"',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(body, 'utf8').toString('base64'),
+    ].join('\r\n');
+    const sent = await request('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      token,
+      provider: P,
+      body: { raw: b64url(mime), threadId: orig.threadId },
+    });
+    return { respondido: true, id: sent.id, para: to };
+  },
+
+  // Cria um Google Docs com o texto informado (escopo drive.file: só arquivos criados pelo app).
+  async gdrive_create_doc({ token }, { name, content }) {
+    const boundary = `squadai${Date.now()}`;
+    const meta = { name: String(name).trim() || 'Documento', mimeType: 'application/vnd.google-apps.document' };
+    const raw = [
+      `--${boundary}`,
+      'Content-Type: application/json; charset=UTF-8',
+      '',
+      JSON.stringify(meta),
+      `--${boundary}`,
+      'Content-Type: text/plain; charset=UTF-8',
+      '',
+      content,
+      `--${boundary}--`,
+      '',
+    ].join('\r\n');
+    const f = await request('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
+      method: 'POST',
+      token,
+      provider: P,
+      raw,
+      headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+    });
+    return { criado: true, nome: f.name, link: f.webViewLink };
   },
 };
