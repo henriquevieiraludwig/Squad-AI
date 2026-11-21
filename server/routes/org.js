@@ -446,7 +446,7 @@ export function registerOrgRoutes(app) {
     const timeline = [];
     for (const m of msgs) {
       if (m.author === 'ferramenta') continue;
-      if (m.author === 'sistema' && m.role === 'system') continue;
+      if (m.role === 'system') continue;
       const text = previewOf(m.content, Infinity);
       if (text) timeline.push({ id: m.id, author: m.author, text, at: m.created_at });
     }

@@ -57,7 +57,9 @@ const CHANNEL_NOTES = {
   whatsapp: 'Conversa pelo WhatsApp. Prefira mensagens curtas, como numa conversa de celular.',
 };
 
-// Instruções em duas partes: a fixa (vai para o cache) e a que muda por conversa (memória, canal e data).
+// Instruções em duas partes. A fixa vai no "system" e não muda entre as mensagens (o raciocínio guardado
+// do modelo só vale com o mesmo "system"). A que muda (memória, canal e data) entra como mensagem de sistema
+// no meio da conversa, só quando muda, e fica gravada no histórico para ele ser sempre o mesmo ao reenviar.
 function systemPrompt({ agent, orgName, channel, knowledge, memories }) {
   const today = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full', timeZone: TZ }).format(new Date());
   const stable = `Você é ${agent.name}, agente de IA da empresa ${orgName}, atuando na área de ${agent.area}.
@@ -96,10 +98,7 @@ Formato das respostas:
 Canal: ${CHANNEL_NOTES[channel] || channel}
 Hoje é ${today}. Fuso horário: ${TZ}.`;
 
-  return [
-    { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
-    { type: 'text', text: dynamic },
-  ];
+  return { stable, dynamic };
 }
 
 // ---------- Histórico ----------
@@ -118,7 +117,10 @@ async function loadHistory(conversationId) {
   const out = [];
   for (const r of rows.slice(start)) {
     const prev = out[out.length - 1];
-    if (prev && prev.role === r.role && r.role !== 'system') {
+    if (prev && prev.role === 'system' && r.role === 'system') {
+      // Avisos de sistema seguidos viram um só, como foram enviados.
+      prev.content = `${prev.content}\n\n${r.content}`;
+    } else if (prev && prev.role === r.role) {
       const toBlocks = (c) => (typeof c === 'string' ? [{ type: 'text', text: c }] : c);
       prev.content = [...toBlocks(prev.content), ...toBlocks(r.content)];
     } else out.push({ role: r.role, content: r.content });
@@ -237,16 +239,26 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, author =
       input_schema: action.input_schema,
     })),
   ];
-  const system = systemPrompt({ agent, orgName: org.name, channel: conv.channel, knowledge, memories });
+  const { stable: system, dynamic: context } = systemPrompt({ agent, orgName: org.name, channel: conv.channel, knowledge, memories });
 
   const messages = await loadHistory(conversationId);
   messages.push({ role: 'user', content: text });
   await appendMessage(conversationId, 'user', text, author);
+  // Avisos do sistema desta vez: resultado de aprovações e o contexto (memória, canal, data) se mudou.
+  const notes = [];
   const note = await pendingDecisionNote(conversationId);
-  if (note) {
-    messages.push({ role: 'system', content: note });
-    await appendMessage(conversationId, 'system', note, 'sistema');
+  if (note) notes.push(note);
+  const lastContext = await db.get(
+    `SELECT content FROM messages WHERE conversation_id = $1 AND author = 'contexto' ORDER BY id DESC LIMIT 1`,
+    [conversationId],
+  );
+  if (note) await appendMessage(conversationId, 'system', note, 'sistema');
+  if (!lastContext || lastContext.content !== context) {
+    notes.push(context);
+    await db.run('INSERT INTO messages (conversation_id, role, author, content) VALUES ($1, $2, $3, $4)', [conversationId, 'system', 'contexto', json(context)]);
   }
+  // Mesma junção que loadHistory faz ao reler: o histórico reenviado fica idêntico ao enviado agora.
+  if (notes.length) messages.push({ role: 'system', content: notes.join('\n\n') });
 
   const ctx = { orgId, agentId, conversationId, contactKey, contactLabel: conv.contact_label };
   const runs = [];
@@ -260,9 +272,12 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, author =
       system,
       tools: toolDefs,
       messages,
+      // Se o raciocínio guardado de uma mensagem antiga não valer mais (instruções ou histórico mudaram),
+      // a API descarta esse bloco em vez de recusar a conversa.
+      thinking: { type: 'adaptive', block_binding: { prefix_mismatch_behavior: 'drop_block' } },
       output_config: { effort: 'medium' },
       cache_control: { type: 'ephemeral' },
-      betas: ['server-side-fallback-2026-07-01'],
+      betas: ['server-side-fallback-2026-07-01', 'thinking-binding-controls-2026-08-01'],
       fallbacks: 'default',
     });
     const u = response.usage || {};

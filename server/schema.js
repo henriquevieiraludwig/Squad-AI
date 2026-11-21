@@ -264,4 +264,9 @@ export const MIGRATIONS = [
   CREATE INDEX IF NOT EXISTS idx_memories_agent ON agent_memories (agent_id, contact_key);
   ALTER TABLE agent_memories ENABLE ROW LEVEL SECURITY;
   `,
+  `
+  -- Contexto da conversa (memória, canal e data) gravado como aviso de sistema.
+  ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_author_check;
+  ALTER TABLE messages ADD CONSTRAINT messages_author_check CHECK (author IN ('contato', 'agente', 'humano', 'sistema', 'ferramenta', 'contexto'));
+  `,
 ];

@@ -14,7 +14,13 @@ after(async () => {
 
 const toolUse = (name, input) => ({ content: [{ type: 'tool_use', id: `toolu_${Math.random().toString(36).slice(2, 8)}`, name, input }], stop_reason: 'tool_use' });
 const text = (t) => ({ content: [{ type: 'text', text: t }], stop_reason: 'end_turn' });
-const systemText = () => [].concat(P.fakes.claude.requests.at(-1).system).map((b) => b.text).join('\n');
+// Instruções fixas + avisos de sistema da conversa (onde ficam memória, canal e data).
+const systemText = () => {
+  const req = P.fakes.claude.requests.at(-1);
+  const sys = [].concat(req.system).map((b) => (typeof b === 'string' ? b : b.text));
+  const notes = req.messages.filter((m) => m.role === 'system').map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)));
+  return [...sys, ...notes].join('\n');
+};
 const toolNames = () => (P.fakes.claude.requests.at(-1).tools || []).map((t) => t.name);
 
 describe('memória do agente', () => {
@@ -51,6 +57,22 @@ describe('memória do agente', () => {
     assert.match(sys, /Aninha/);
     assert.match(sys, /\*\*negrito\*\*/, 'instruções de formatação');
     assert.match(sys, /emojis/i, 'instruções de emoji');
+  });
+
+  it('as instruções fixas não mudam entre mensagens e o contexto só é reenviado quando muda', async () => {
+    P.fakes.claude.queue.push(text('Um.'), text('Dois.'));
+    await ana.post(`/api/agents/${agentId}/chat`, { message: 'primeira' });
+    const first = P.fakes.claude.requests.at(-1);
+    await ana.post(`/api/agents/${agentId}/chat`, { message: 'segunda', conversationId: (await ana.get(`/api/agents/${agentId}/chat`)).body.conversationId });
+    const second = P.fakes.claude.requests.at(-1);
+    assert.deepEqual(second.system, first.system, 'system idêntico');
+    assert.equal(typeof second.system, 'string');
+    assert.doesNotMatch(second.system, /Sua memória|Hoje é/, 'memória e data fora do system');
+    // O histórico reenviado começa igual ao pedido anterior (mensagens já enviadas não mudam).
+    assert.deepEqual(second.messages.slice(0, first.messages.length), first.messages);
+    const countCtx = (req) => req.messages.filter((m) => m.role === 'system' && /Hoje é/.test(m.content)).length;
+    assert.equal(countCtx(second), countCtx(first), 'contexto não repetido quando não mudou');
+    assert.equal(second.thinking.block_binding.prefix_mismatch_behavior, 'drop_block');
   });
 
   it('a memória de um contato não aparece para outra pessoa', async () => {
