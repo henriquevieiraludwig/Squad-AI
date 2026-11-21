@@ -116,6 +116,9 @@ function ConversationDetail({ id, user, notify, onChange, onBack }) {
   const [error, setError] = useState('');
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [pending, setPending] = useState(null); // mensagem enviada aguardando a resposta do agente
   const endRef = useRef(null);
   const canAttend = can(user, 'atender');
 
@@ -135,7 +138,28 @@ function ConversationDetail({ id, user, notify, onChange, onBack }) {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' });
-  }, [data?.messages.length]);
+  }, [data?.messages.length, pending]);
+
+  // Continua a conversa de teste com o agente, não importa quando ela foi feita.
+  async function continueChat(e) {
+    e.preventDefault();
+    const text = draft.trim();
+    if (!text || sending) return;
+    setSending(true);
+    setPending(text);
+    setDraft('');
+    try {
+      await api(`/agents/${data.conversation.agentId}/chat`, { method: 'POST', body: { message: text, conversationId: id } });
+      await load();
+      onChange();
+    } catch (err) {
+      notify(err.message, 'error');
+      setDraft(text);
+    } finally {
+      setPending(null);
+      setSending(false);
+    }
+  }
 
   async function act(path, body, msg) {
     setBusy(true);
@@ -213,8 +237,44 @@ function ConversationDetail({ id, user, notify, onChange, onBack }) {
             ))}
           </div>
         )}
+        {pending && (
+          <>
+            <div className="msg msg-agent">
+              <span className="msg-author">Contato, agora</span>
+              <p>{pending}</p>
+            </div>
+            <div className="msg msg-user msg-typing" aria-label="O agente está respondendo">
+              <span />
+              <span />
+              <span />
+            </div>
+          </>
+        )}
         <div ref={endRef} />
       </div>
+
+      {c.canContinue && (
+        <form className="composer" onSubmit={continueChat}>
+          <label htmlFor="continue-chat" className="visually-hidden">
+            Continuar a conversa com o agente
+          </label>
+          <textarea
+            id="continue-chat"
+            className="input"
+            rows={2}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) continueChat(e);
+            }}
+            placeholder={`Continuar a conversa com ${c.agentName}`}
+          />
+          <button type="submit" className="btn btn-primary" disabled={sending || !draft.trim()}>
+            {sending ? <span className="spinner" aria-hidden="true" /> : <IconSend />}
+            Enviar
+          </button>
+        </form>
+      )}
 
       {canAttend && c.canReply && human && (
         <form

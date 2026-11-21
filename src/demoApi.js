@@ -606,7 +606,7 @@ async function companyRoutes(s, method, path, body) {
       const c = convs.find((x) => x.id === Number(m[1]));
       if (!c) throw new ApiError('Conversa não encontrada.', 404);
       return {
-        conversation: { id: c.id, channel: 'teste', contact: c.contact, handledBy: 'agente', agentName: agentName(c.agentId), canReply: false },
+        conversation: { id: c.id, channel: 'teste', contact: c.contact, handledBy: 'agente', agentName: agentName(c.agentId), canReply: false, agentId: c.agentId, canContinue: !c.userId || c.userId === me.id },
         messages: c.messages,
         actions: [],
       };

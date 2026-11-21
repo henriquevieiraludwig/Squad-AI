@@ -109,6 +109,27 @@ describe('memória do agente', () => {
     assert.equal((await ana.del(`/api/agents/${agentId}/memories/${add.body.id}`)).status, 404);
   });
 
+  it('continua uma conversa antiga pela caixa de conversas e o agente sabe com quem fala', async () => {
+    const convId = (await ana.get(`/api/agents/${agentId}/chat`)).body.conversationId;
+    // Começa outra conversa, deixando a anterior "antiga".
+    P.fakes.claude.queue.push(text('Nova.'));
+    await ana.post(`/api/agents/${agentId}/chat`, { message: 'outra conversa', newConversation: true });
+    const detail = (await ana.get(`/api/conversations/${convId}`)).body.conversation;
+    assert.equal(detail.canContinue, true);
+    assert.equal(detail.agentId, agentId);
+
+    P.fakes.claude.queue.push(text('Continuando!'));
+    const r = await ana.post(`/api/agents/${agentId}/chat`, { message: 'voltei', conversationId: convId });
+    assert.equal(r.body.conversationId, convId, 'continuou na mesma conversa');
+    assert.match(systemText(), /conversando com Ana \(ana@sol\.com\)/);
+
+    // Outra pessoa vê o histórico, mas não continua a conversa da Ana.
+    assert.equal((await bia.get(`/api/conversations/${convId}`)).body.conversation.canContinue, false);
+    P.fakes.claude.queue.push(text('Oi.'));
+    const other = await bia.post(`/api/agents/${agentId}/chat`, { message: 'posso?', conversationId: convId });
+    assert.notEqual(other.body.conversationId, convId);
+  });
+
   it('outra empresa não vê nem apaga a memória', async () => {
     const out = P.client();
     await out.post('/api/auth/signup', { name: 'Zé', company: 'Outra', email: 'ze@outra.com', password: 'senhaforte1' });

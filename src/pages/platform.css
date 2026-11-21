@@ -1900,10 +1900,24 @@
 }
 
 .conv-detail {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   height: min(720px, calc(100vh - 260px));
   min-height: 420px;
+}
+
+.conv-detail > * {
+  flex: none;
+}
+
+.conv-detail > .conv-log {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Links em balões escuros */
+.msg-user .fmt a {
+  color: inherit;
 }
 
 .conv-detail-head {
@@ -2082,4 +2096,9 @@
   .memory-add {
     flex-direction: column;
   }
+}
+
+/* Na caixa de conversas, as respostas do agente também usam balão largo. */
+.conv-log .msg {
+  max-width: min(88%, 900px);
 }

@@ -60,7 +60,7 @@ const CHANNEL_NOTES = {
 // Instruções em duas partes. A fixa vai no "system" e não muda entre as mensagens (o raciocínio guardado
 // do modelo só vale com o mesmo "system"). A que muda (memória, canal e data) entra como mensagem de sistema
 // no meio da conversa, só quando muda, e fica gravada no histórico para ele ser sempre o mesmo ao reenviar.
-function systemPrompt({ agent, orgName, channel, knowledge, memories }) {
+function systemPrompt({ agent, orgName, channel, knowledge, memories, person }) {
   const today = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full', timeZone: TZ }).format(new Date());
   const stable = `Você é ${agent.name}, agente de IA da empresa ${orgName}, atuando na área de ${agent.area}.
 
@@ -94,7 +94,7 @@ Formato das respostas:
 - Use emojis com naturalidade para deixar a conversa mais simpática (no máximo um ou dois por mensagem, como 😊, 👍, 📅, ✅). Evite emojis em assuntos delicados, como reclamações, cobranças ou problemas graves.`;
 
   const dynamic = `${memoryPromptBlock(memories)}
-
+${person ? `\nVocê está conversando com ${person}. Trate a pessoa pelo nome.\n` : ''}
 Canal: ${CHANNEL_NOTES[channel] || channel}
 Hoje é ${today}. Fuso horário: ${TZ}.`;
 
@@ -239,7 +239,15 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, author =
       input_schema: action.input_schema,
     })),
   ];
-  const { stable: system, dynamic: context } = systemPrompt({ agent, orgName: org.name, channel: conv.channel, knowledge, memories });
+  // Na conversa de teste, quem fala é alguém da equipe logado na plataforma: o agente sabe quem é.
+  let person = null;
+  const userMatch = conv.channel === 'teste' && /^user:(\d+)$/.exec(conv.external_id || '');
+  if (userMatch) {
+    const u = await db.get('SELECT name, email, role FROM users WHERE id = $1 AND org_id = $2', [Number(userMatch[1]), orgId]);
+    const ROLE_NAMES = { owner: 'proprietário(a)', admin: 'administrador(a)', approver: 'aprovador(a)', member: 'membro da equipe' };
+    if (u) person = `${u.name} (${u.email}), ${ROLE_NAMES[u.role] || 'da equipe'} da ${org.name}, pela plataforma`;
+  }
+  const { stable: system, dynamic: context } = systemPrompt({ agent, orgName: org.name, channel: conv.channel, knowledge, memories, person });
 
   const messages = await loadHistory(conversationId);
   messages.push({ role: 'user', content: text });

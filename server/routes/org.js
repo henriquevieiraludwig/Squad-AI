@@ -178,8 +178,11 @@ export function registerOrgRoutes(app) {
     if (!message) return res.status(400).json({ error: 'Escreva uma mensagem.' });
     let conversationId = Number(req.body?.conversationId) || null;
     if (conversationId) {
-      const conv = await db.get('SELECT id FROM conversations WHERE id = $1 AND org_id = $2 AND agent_id = $3 AND channel = $4', [conversationId, req.user.orgId, agent.id, 'teste']);
-      if (!conv) conversationId = null;
+      const conv = await db.get('SELECT id, external_id FROM conversations WHERE id = $1 AND org_id = $2 AND agent_id = $3 AND channel = $4', [conversationId, req.user.orgId, agent.id, 'teste']);
+      const mine = `user:${req.user.id}`;
+      if (!conv || (conv.external_id && conv.external_id !== mine)) conversationId = null;
+      // Conversas antigas, de antes de cada pessoa ter as suas, passam a ser de quem as continua.
+      else if (!conv.external_id) await db.run('UPDATE conversations SET external_id = $2 WHERE id = $1', [conv.id, mine]);
     }
     if (!conversationId) {
       // A conversa de teste é de cada pessoa com cada agente: continua de onde parou, salvo em "Nova conversa".
@@ -458,7 +461,10 @@ export function registerOrgRoutes(app) {
         handledBy: c.handled_by,
         assignedTo: c.assigned_name,
         agentName: c.agent_name,
+        agentId: c.agent_id,
         canReply: c.channel !== 'teste',
+        // Conversa de teste da própria pessoa: pode continuar a qualquer momento.
+        canContinue: c.channel === 'teste' && (!c.external_id || c.external_id === `user:${req.user.id}`) && can(req.user, 'conversar'),
       },
       messages: timeline,
       actions: runs.map((r) => ({ id: r.id, label: ACTION_BY_ID[r.action_id]?.label || r.action_id, status: r.status, input: r.input, at: r.requested_at })),
