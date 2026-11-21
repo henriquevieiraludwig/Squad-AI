@@ -47,15 +47,18 @@ const attr = (s) => String(s).replace(/"/g, "'");
 
 // Bloco de conhecimento do agente: documentos da empresa e processos (do agente ou de todos).
 export async function knowledgeFor(orgId, agentId) {
-  const [docs, processes] = await Promise.all([
+  const [docs, processes, agents] = await Promise.all([
     db.all('SELECT title, content FROM knowledge_docs WHERE org_id = $1 ORDER BY id', [orgId]),
+    // Processos do agente, de todos, ou em que ele é responsável por alguma etapa.
     db.all(
-      `SELECT title, trigger, steps, rules FROM processes
-        WHERE org_id = $1 AND active = true AND (agent_id IS NULL OR agent_id = $2) ORDER BY id`,
-      [orgId, agentId],
+      `SELECT title, trigger, steps, step_agents, rules, agent_id FROM processes
+        WHERE org_id = $1 AND active = true AND (agent_id IS NULL OR agent_id = $2 OR step_agents @> $3::jsonb) ORDER BY id`,
+      [orgId, agentId, JSON.stringify([agentId])],
     ),
+    db.all('SELECT id, name, area FROM agents WHERE org_id = $1', [orgId]),
   ]);
   if (!docs.length && !processes.length) return '';
+  const nameOf = Object.fromEntries(agents.map((a) => [a.id, a.name]));
 
   const parts = [];
   if (docs.length) {
@@ -66,9 +69,20 @@ export async function knowledgeFor(orgId, agentId) {
   if (processes.length) {
     parts.push('<processos>');
     for (const p of processes) {
-      const steps = (p.steps || []).map((s, i) => `${i + 1}. ${s}`).join('\n');
+      const owners = p.step_agents || [];
+      const multi = owners.some((o) => o && o !== agentId);
+      const steps = (p.steps || [])
+        .map((s, i) => {
+          const o = owners[i];
+          const who = o ? (o === agentId ? ' (responsável: você)' : ` (responsável: ${nameOf[o] || 'outro agente'})`) : '';
+          return `${i + 1}. ${s}${who}`;
+        })
+        .join('\n');
+      const handoff = multi
+        ? '\nEste processo tem etapas de outros agentes. Faça as suas etapas e, quando chegar a vez de outro agente, use a ferramenta passar_tarefa com o nome dele e tudo o que ele precisa para continuar; depois use o resultado para seguir.'
+        : '';
       parts.push(
-        `<processo titulo="${attr(p.title)}"${p.trigger ? ` quando_usar="${attr(p.trigger)}"` : ''}>\n${steps}${p.rules ? `\nRegras obrigatórias: ${p.rules}` : ''}\n</processo>`,
+        `<processo titulo="${attr(p.title)}"${p.trigger ? ` quando_usar="${attr(p.trigger)}"` : ''}>\n${steps}${p.rules ? `\nRegras obrigatórias: ${p.rules}` : ''}${handoff}\n</processo>`,
       );
     }
     parts.push('</processos>');

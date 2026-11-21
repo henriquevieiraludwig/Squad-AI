@@ -269,4 +269,8 @@ export const MIGRATIONS = [
   ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_author_check;
   ALTER TABLE messages ADD CONSTRAINT messages_author_check CHECK (author IN ('contato', 'agente', 'humano', 'sistema', 'ferramenta', 'contexto'));
   `,
+  `
+  -- Processos com vários agentes: agente responsável por cada etapa (mesma ordem de "steps"; null = quem segue o processo).
+  ALTER TABLE processes ADD COLUMN IF NOT EXISTS step_agents JSONB NOT NULL DEFAULT '[]';
+  `,
 ];

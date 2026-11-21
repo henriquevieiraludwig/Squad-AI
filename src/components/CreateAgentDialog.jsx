@@ -1,6 +1,7 @@
 import AvatarPicker from './AvatarPicker.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
+import ToolPicker from './ToolPicker.jsx';
 
 const empty = { name: '', area: '', roleDescription: '', avatar: 'avatar-1' };
 const STATUS_OPTIONS = [
@@ -11,6 +12,8 @@ const STATUS_OPTIONS = [
 // Cria um agente novo ou, com "agent", edita um existente.
 export default function CreateAgentDialog({ open, onClose, onCreated, onSaved, areas, agent = null }) {
   const editing = Boolean(agent);
+  const [tools, setTools] = useState({});
+  const [connected, setConnected] = useState(new Set());
   const ref = useRef(null);
   const [values, setValues] = useState(empty);
   const [fields, setFields] = useState({});
@@ -21,6 +24,12 @@ export default function CreateAgentDialog({ open, onClose, onCreated, onSaved, a
     const el = ref.current;
     if (!el) return;
     if (open && !el.open) {
+      setTools({});
+      if (!agent) {
+        api('/integrations')
+          .then((r) => setConnected(new Set((r.providers || []).filter((p) => p.connected && !p.via).map((p) => p.id))))
+          .catch(() => {});
+      }
       setValues(
         agent
           ? { name: agent.name, area: agent.area, roleDescription: agent.roleDescription || '', avatar: agent.avatar || 'avatar-1', status: agent.status }
@@ -54,7 +63,10 @@ export default function CreateAgentDialog({ open, onClose, onCreated, onSaved, a
         const res = await api(`/agents/${agent.id}`, { method: 'PUT', body: values });
         onSaved(res.agent);
       } else {
-        const res = await api('/agents', { method: 'POST', body: values });
+        const res = await api('/agents', {
+          method: 'POST',
+          body: { ...values, tools: Object.entries(tools).map(([actionId, mode]) => ({ actionId, mode })) },
+        });
         onCreated(res.agent);
       }
     } catch (err) {
@@ -133,6 +145,8 @@ export default function CreateAgentDialog({ open, onClose, onCreated, onSaved, a
             />
             <span className="hint">Opcional. Escreva como explicaria a função para alguém recém-contratado.</span>
           </div>
+
+          {!editing && <ToolPicker value={tools} onChange={setTools} connected={connected} />}
 
           {editing && (
             <fieldset className="field area-picker">

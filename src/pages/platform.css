@@ -2052,8 +2052,133 @@
   flex: none;
 }
 
-.content:has(.chat-panel) > .chat-panel {
+.content:has(.chat-panel) > .chat-panel,
+.content:has(.chat-panel) > .chat-layout {
   flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Lista de agentes ao lado da conversa */
+.chat-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 16px;
+  min-height: 0;
+}
+
+.chat-layout > .chat-panel {
+  min-height: 0;
+  height: 100%;
+}
+
+.chat-agents {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 12px 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  overflow-y: auto;
+}
+
+.chat-agents-title {
+  padding: 0 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.chat-agents ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.chat-agent-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.chat-agent-item > span {
+  display: grid;
+  min-width: 0;
+}
+
+.chat-agent-item strong,
+.chat-agent-item .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-agent-item strong {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.chat-agent-item:hover {
+  background: var(--bg);
+}
+
+.chat-agent-item.is-active {
+  background: color-mix(in srgb, var(--leaf) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--leaf);
+}
+
+.chat-agents-new {
+  justify-content: flex-start;
+  margin-top: auto;
+}
+
+@media (max-width: 1100px) {
+  .chat-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .chat-agents {
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px;
+  }
+
+  .chat-agents-title,
+  .chat-agents-new {
+    display: none;
+  }
+
+  .chat-agents ul {
+    display: flex;
+    gap: 4px;
+  }
+
+  .chat-agent-item {
+    width: auto;
+    white-space: nowrap;
+    padding: 6px 10px 6px 6px;
+  }
+
+  .chat-agent-item.is-active {
+    box-shadow: inset 0 -3px 0 var(--leaf);
+  }
 }
 
 .chat-log {
@@ -2224,4 +2349,122 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* Escolha de ferramentas na criação do agente */
+.tool-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.tool-group {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.tool-group summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.tool-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-group summary::before {
+  content: '▸';
+  color: var(--ink-faint);
+  transition: transform 0.15s ease;
+}
+
+.tool-group[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.tool-group-name {
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.tool-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px 8px;
+  display: grid;
+}
+
+.tool-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+
+.tool-row label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.tool-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--leaf);
+  flex: none;
+}
+
+.tool-row select {
+  width: auto;
+  flex: none;
+}
+
+.dialog {
+  overflow-y: auto;
+}
+
+.input.input-sm {
+  padding: 5px 8px;
+  min-height: 0;
+  height: auto;
+  font-size: 0.85rem;
+}
+
+/* Processos com vários agentes */
+.step-agent {
+  width: auto;
+  max-width: 170px;
+  flex: none;
+}
+
+.step-owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  padding: 1px 8px 1px 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  vertical-align: middle;
+}
+
+@media (max-width: 560px) {
+  .step-row {
+    flex-wrap: wrap;
+  }
+
+  .step-agent {
+    max-width: none;
+    flex: 1 1 100%;
+  }
 }

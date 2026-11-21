@@ -104,7 +104,7 @@ export default function Platform() {
     setAgents((list) => [agent, ...(list || [])]);
     setDialogOpen(false);
     refreshSummary();
-    notify(`${agent.name} criado. Agora libere as ferramentas que ele pode usar.`);
+    notify(`${agent.name} criado. Converse com ele em Testar conversas para ver como responde.`);
     navigate(`/app/agentes/${agent.id}`);
   }
 

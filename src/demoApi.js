@@ -170,6 +170,8 @@ export async function demoApi(path, { method = 'GET', body = {} } = {}) {
       createdAt: now(),
     };
     s.agents.push(agent);
+    const tools = (Array.isArray(body.tools) ? body.tools : []).filter((t) => ACTION_BY_ID[t?.actionId] && ['auto', 'approval'].includes(t.mode));
+    if (tools.length) (s.tools ??= {})[agent.id] = Object.fromEntries(tools.map((t) => [t.actionId, t.mode]));
     save();
     return { agent: publicAgent(agent) };
   }
@@ -570,7 +572,11 @@ async function companyRoutes(s, method, path, body) {
     if (!clean(body.title)) fields.title = 'Dê um nome ao processo.';
     if (!steps.length) fields.steps = 'Descreva pelo menos uma etapa.';
     if (Object.keys(fields).length) throw new ApiError('Revise os campos destacados.', 400, fields);
-    const data = { title: clean(body.title, 160), agentId: body.agentId ? Number(body.agentId) : null, trigger: clean(body.trigger, 400), steps, rules: clean(body.rules, 2000), active: body.active !== false, updatedAt: now() };
+    const stepAgents = (body.steps || [])
+      .map((x, i) => [clean(x, 1000), (body.stepAgents || [])[i]])
+      .filter(([x]) => x)
+      .map(([, a]) => (a ? Number(a) : null));
+    const data = { title: clean(body.title, 160), agentId: body.agentId ? Number(body.agentId) : null, trigger: clean(body.trigger, 400), steps, stepAgents, rules: clean(body.rules, 2000), active: body.active !== false, updatedAt: now() };
     if (method === 'POST') {
       const p = { id: nextId(), orgId: me.orgId, ...data };
       s.processes.push(p);

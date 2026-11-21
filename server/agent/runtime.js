@@ -52,6 +52,7 @@ async function enabledTools(agent, partner) {
 }
 
 const CHANNEL_NOTES = {
+  interno: 'Tarefa recebida de outro agente da empresa, como parte de um processo. Faça a sua parte com as suas ferramentas e responda com o resultado, de forma objetiva, para o agente que passou a tarefa. Não faça perguntas que só o cliente poderia responder; se faltar algo, diga o que falta.',
   teste: 'Conversa de teste dentro da plataforma, com alguém da equipe da empresa.',
   telegram: 'Conversa pelo Telegram. Prefira mensagens curtas, como numa conversa de celular.',
   whatsapp: 'Conversa pelo WhatsApp. Prefira mensagens curtas, como numa conversa de celular.',
@@ -219,7 +220,65 @@ const textOf = (content) =>
     .join('\n')
     .trim();
 
-async function runAgentUnlocked({ orgId, agentId, conversationId, text, content = null, author = 'contato' }) {
+const MAX_HANDOFF_DEPTH = 2; // um agente passa para outro, que pode passar para um terceiro; não mais que isso
+
+function handoffTool(others) {
+  return {
+    name: 'passar_tarefa',
+    description: `Passa uma tarefa para outro agente da empresa e espera o resultado. Use quando um processo indicar que a etapa é de outro agente, ou quando o pedido for da área de outro agente. Explique na tarefa tudo o que ele precisa (dados, contexto, o que você já fez e o que espera de volta). Agentes disponíveis: ${others.map((a) => `${a.name} (${a.area})`).join('; ')}.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        agente: { type: 'string', description: 'Nome do agente que vai receber a tarefa.' },
+        tarefa: { type: 'string', description: 'O que ele deve fazer, com todo o contexto necessário.' },
+      },
+      required: ['agente', 'tarefa'],
+      additionalProperties: false,
+    },
+  };
+}
+
+async function runHandoff(ctx, block, others) {
+  const base = { type: 'tool_result', tool_use_id: block.id };
+  const wanted = String(block.input?.agente || '').trim().toLowerCase();
+  const target = others.find((a) => a.name.toLowerCase() === wanted) || others.find((a) => a.name.toLowerCase().startsWith(wanted) || wanted.startsWith(a.name.toLowerCase()));
+  if (!target) return { result: { ...base, is_error: true, content: `Não encontrei o agente "${block.input?.agente}". Disponíveis: ${others.map((a) => a.name).join(', ')}.` } };
+  if (ctx.depth >= MAX_HANDOFF_DEPTH) return { result: { ...base, is_error: true, content: 'Esta tarefa já passou por agentes demais. Resolva com o que tem ou explique o que falta.' } };
+  const tarefa = String(block.input?.tarefa || '').trim().slice(0, 8000);
+  if (!tarefa) return { result: { ...base, is_error: true, content: 'Descreva a tarefa.' } };
+
+  // Conversa interna entre os dois agentes, ligada à conversa de origem (fica registrada em Conversas).
+  const conversationId = await findOrCreateConversation({
+    orgId: ctx.orgId,
+    agentId: target.id,
+    channel: 'interno',
+    externalId: `handoff:${ctx.conversationId}:${ctx.agentId}`,
+    contact: `Agente ${ctx.agentName}`,
+  });
+  try {
+    const out = await runAgent({
+      orgId: ctx.orgId,
+      agentId: target.id,
+      conversationId,
+      text: `Tarefa passada por ${ctx.agentName}:\n\n${tarefa}`,
+      author: 'contato',
+      depth: ctx.depth + 1,
+    });
+    const acts = (out.actions || []).map((a) => `${a.label}: ${a.status}`).join('; ');
+    return {
+      run: { id: `handoff-${conversationId}-${Date.now()}`, label: `Passou tarefa para ${target.name}`, status: 'executada', input: { tarefa } },
+      nested: out.actions || [],
+      result: { ...base, content: `Resposta de ${target.name}:\n${out.reply}${acts ? `\n\nAções feitas por ${target.name}: ${acts}` : ''}` },
+    };
+  } catch (err) {
+    return {
+      run: { id: `handoff-${conversationId}-${Date.now()}`, label: `Passou tarefa para ${target.name}`, status: 'erro', input: { tarefa }, error: err.message },
+      result: { ...base, is_error: true, content: `${target.name} não conseguiu concluir: ${err.message}` },
+    };
+  }
+}
+
+async function runAgentUnlocked({ orgId, agentId, conversationId, text, content = null, author = 'contato', depth = 0 }) {
   const agent = await db.get('SELECT * FROM agents WHERE id = $1 AND org_id = $2', [agentId, orgId]);
   if (!agent) throw new AgentError('Agente não encontrado.', 404);
   await assertCanRunAgent(orgId);
@@ -228,11 +287,17 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
   const conv = await db.get('SELECT channel, external_id, contact_label FROM conversations WHERE id = $1', [conversationId]);
   const contactKey = contactKeyFor(conv);
 
-  const [tools, knowledge, memories] = await Promise.all([enabledTools(agent, partner), knowledgeFor(orgId, agentId), memoriesFor(agentId, contactKey)]);
+  const [tools, knowledge, memories, others] = await Promise.all([
+    enabledTools(agent, partner),
+    knowledgeFor(orgId, agentId),
+    memoriesFor(agentId, contactKey),
+    db.all('SELECT id, name, area FROM agents WHERE org_id = $1 AND id <> $2 ORDER BY id', [orgId, agentId]),
+  ]);
   const toolsByName = Object.fromEntries(tools.map((t) => [t.action.id, t]));
   // A memória vem primeiro e é sempre igual: mantém o começo da lista estável para o cache.
   const toolDefs = [
     ...MEMORY_TOOLS,
+    ...(others.length ? [handoffTool(others)] : []),
     ...tools.map(({ action, mode }) => ({
       name: action.id,
       description: action.description + (mode === 'approval' ? ' Esta ação passa por aprovação humana antes de ser executada.' : ''),
@@ -270,7 +335,7 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
   // Mesma junção que loadHistory faz ao reler: o histórico reenviado fica idêntico ao enviado agora.
   if (notes.length) messages.push({ role: 'system', content: notes.join('\n\n') });
 
-  const ctx = { orgId, agentId, conversationId, contactKey, contactLabel: conv.contact_label };
+  const ctx = { orgId, agentId, agentName: agent.name, conversationId, contactKey, contactLabel: conv.contact_label, depth };
   const runs = [];
   const totals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
   let reply = '';
@@ -320,6 +385,13 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
     for (const block of toolUses) {
       if (block.name === 'lembrar' || block.name === 'esquecer') {
         results.push(await runMemoryTool(ctx, block));
+        continue;
+      }
+      if (block.name === 'passar_tarefa') {
+        const h = await runHandoff(ctx, block, others);
+        results.push(h.result);
+        if (h.run) runs.push(h.run);
+        if (h.nested) runs.push(...h.nested);
         continue;
       }
       const { result, run } = await runTool(ctx, block, toolsByName);

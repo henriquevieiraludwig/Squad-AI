@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import AgentAvatar from '../../components/AgentAvatar.jsx';
 import { api } from '../../api.js';
 import { can } from '../../auth.jsx';
 import { IconProcess, IconPlus, IconTrash } from '../../components/Icons.jsx';
 import { PageHead, SearchInput, FilterChips, EmptyState, ErrorState, LoadingRows, formatDate } from './common.jsx';
 
-const EMPTY = { title: '', agentId: '', trigger: '', steps: [''], rules: '', active: true };
+const EMPTY = { title: '', agentId: '', trigger: '', steps: [''], stepAgents: [''], rules: '', active: true };
 
 export default function Processes({ user, agents, notify }) {
   const [list, setList] = useState(null);
@@ -81,21 +82,37 @@ export default function Processes({ user, agents, notify }) {
                 <div>
                   <h3>{p.title}</h3>
                   <p className="muted">
-                    {p.agentName ? `Só para ${p.agentName}` : 'Para todos os agentes'}, atualizado em {formatDate(p.updatedAt)}
+                    {new Set((p.stepAgents || []).filter(Boolean)).size > 1
+                      ? `Com ${new Set(p.stepAgents.filter(Boolean)).size} agentes`
+                      : p.agentName
+                        ? `Só para ${p.agentName}`
+                        : 'Para todos os agentes'}
+                    , atualizado em {formatDate(p.updatedAt)}
                   </p>
                 </div>
                 <span className={`pill ${p.active ? 'pill-ok' : 'pill-neutral'}`}>{p.active ? 'Ativo' : 'Pausado'}</span>
               </div>
               {p.trigger && <p className="process-trigger">Quando usar: {p.trigger}</p>}
               <ol className="process-steps">
-                {p.steps.map((s, i) => (
-                  <li key={i}>{s}</li>
-                ))}
+                {p.steps.map((s, i) => {
+                  const owner = (agents || []).find((a) => a.id === p.stepAgents?.[i]);
+                  return (
+                    <li key={i}>
+                      {s}
+                      {owner && (
+                        <span className="step-owner">
+                          <AgentAvatar avatar={owner.avatar} name={owner.name} size={18} />
+                          {owner.name}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
               </ol>
               {p.rules && <p className="process-rules">Regras: {p.rules}</p>}
               {editable && (
                 <div className="process-actions">
-                  <button className="btn btn-secondary btn-sm" onClick={() => setEditing({ ...p, agentId: p.agentId || '' })}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setEditing({ ...p, agentId: p.agentId || '', stepAgents: (p.stepAgents || []).map((a) => (a ? String(a) : '')) })}>
                     Editar
                   </button>
                 </div>
@@ -125,7 +142,10 @@ export default function Processes({ user, agents, notify }) {
 
 function ProcessDialog({ initial, agents, onClose, onSaved, notify }) {
   const ref = useRef(null);
-  const [v, setV] = useState({ ...initial, steps: initial.steps?.length ? initial.steps : [''] });
+  const [v, setV] = useState(() => {
+    const steps = initial.steps?.length ? initial.steps : [''];
+    return { ...initial, steps, stepAgents: steps.map((_, i) => (initial.stepAgents || [])[i] || '') };
+  });
   const [fields, setFields] = useState({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -137,13 +157,18 @@ function ProcessDialog({ initial, agents, onClose, onSaved, notify }) {
 
   const set = (k, val) => setV((x) => ({ ...x, [k]: val }));
   const setStep = (i, val) => setV((x) => ({ ...x, steps: x.steps.map((s, j) => (j === i ? val : s)) }));
+  const setStepAgent = (i, val) => setV((x) => ({ ...x, stepAgents: x.stepAgents.map((s, j) => (j === i ? val : s)) }));
+  const removeStep = (i) => setV((x) => ({ ...x, steps: x.steps.filter((_, j) => j !== i), stepAgents: x.stepAgents.filter((_, j) => j !== i) }));
+  const addStep = () => setV((x) => ({ ...x, steps: [...x.steps, ''], stepAgents: [...x.stepAgents, ''] }));
   const move = (i, d) =>
     setV((x) => {
       const steps = [...x.steps];
+      const stepAgents = [...x.stepAgents];
       const j = i + d;
       if (j < 0 || j >= steps.length) return x;
       [steps[i], steps[j]] = [steps[j], steps[i]];
-      return { ...x, steps };
+      [stepAgents[i], stepAgents[j]] = [stepAgents[j], stepAgents[i]];
+      return { ...x, steps, stepAgents };
     });
 
   async function submit(e) {
@@ -151,7 +176,8 @@ function ProcessDialog({ initial, agents, onClose, onSaved, notify }) {
     setBusy(true);
     setError('');
     setFields({});
-    const body = { ...v, agentId: v.agentId || null, steps: v.steps.filter((s) => s.trim()) };
+    const keep = v.steps.map((s, i) => [s, v.stepAgents[i]]).filter(([s]) => s.trim());
+    const body = { ...v, agentId: v.agentId || null, steps: keep.map(([s]) => s), stepAgents: keep.map(([, a]) => (a ? Number(a) : null)) };
     try {
       if (initial.id) await api(`/processes/${initial.id}`, { method: 'PUT', body });
       else await api('/processes', { method: 'POST', body });
@@ -209,25 +235,41 @@ function ProcessDialog({ initial, agents, onClose, onSaved, notify }) {
           </div>
           <fieldset className="field steps-editor">
             <legend className="label">Etapas</legend>
+            {agents.length > 1 && (
+              <span className="hint">
+                Escolha o agente de cada etapa para montar um processo com vários agentes: quando chegar a etapa de outro agente, a tarefa é passada para ele
+                e o resultado volta para continuar.
+              </span>
+            )}
             {v.steps.map((s, i) => (
               <div key={i} className="step-row">
                 <span className="step-index tabular" aria-hidden="true">
                   {i + 1}
                 </span>
                 <input className="input" value={s} onChange={(e) => setStep(i, e.target.value)} aria-label={`Etapa ${i + 1}`} placeholder={i === 0 ? 'Ex.: Pedir a foto do recibo ou da nota fiscal' : 'Próxima etapa'} />
+                {agents.length > 1 && (
+                  <select className="input step-agent" value={v.stepAgents[i] || ''} onChange={(e) => setStepAgent(i, e.target.value)} aria-label={`Agente responsável pela etapa ${i + 1}`}>
+                    <option value="">Quem segue</option>
+                    {agents.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Subir etapa ${i + 1}`}>
                   ↑
                 </button>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => move(i, 1)} disabled={i === v.steps.length - 1} aria-label={`Descer etapa ${i + 1}`}>
                   ↓
                 </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => set('steps', v.steps.filter((_, j) => j !== i))} disabled={v.steps.length === 1} aria-label={`Remover etapa ${i + 1}`}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeStep(i)} disabled={v.steps.length === 1} aria-label={`Remover etapa ${i + 1}`}>
                   <IconTrash />
                 </button>
               </div>
             ))}
             {fields.steps && <span className="field-error">{fields.steps}</span>}
-            <button type="button" className="btn btn-secondary btn-sm add-step" onClick={() => set('steps', [...v.steps, ''])}>
+            <button type="button" className="btn btn-secondary btn-sm add-step" onClick={addStep}>
               <IconPlus />
               Adicionar etapa
             </button>

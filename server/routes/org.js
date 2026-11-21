@@ -78,12 +78,19 @@ export function registerOrgRoutes(app) {
   app.post('/api/agents', requireOrg('configurar'), h(async (req, res) => {
     const { out, fields } = validateAgent(req.body);
     if (Object.keys(fields).length) return res.status(400).json({ error: 'Revise os campos destacados.', fields });
+    // Ferramentas escolhidas na criação: só as que vierem marcadas ficam liberadas.
+    const tools = (Array.isArray(req.body.tools) ? req.body.tools : []).filter(
+      (t) => t && ACTION_BY_ID[t.actionId] && ['auto', 'approval'].includes(t.mode),
+    );
     await assertCanAddAgent(req.user.orgId);
     const a = await db.get(
       'INSERT INTO agents (org_id, name, area, role_description, avatar, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [req.user.orgId, out.name, out.area, out.roleDescription, out.avatar || AVATAR_IDS[0], req.user.id],
     );
-    res.status(201).json({ agent: agentView(a) });
+    for (const t of tools) {
+      await db.run('INSERT INTO agent_tools (agent_id, action_id, mode) VALUES ($1, $2, $3) ON CONFLICT (agent_id, action_id) DO NOTHING', [a.id, t.actionId, t.mode]);
+    }
+    res.status(201).json({ agent: agentView(a), tools: Object.fromEntries(tools.map((t) => [t.actionId, t.mode])) });
   }));
 
   app.get('/api/agents/:id', requireOrg(), h(async (req, res) => {
@@ -353,6 +360,7 @@ export function registerOrgRoutes(app) {
     agentName: p.agent_name || null,
     trigger: p.trigger,
     steps: p.steps,
+    stepAgents: (p.steps || []).map((_, i) => (p.step_agents || [])[i] ?? null),
     rules: p.rules,
     active: p.active,
     updatedAt: p.updated_at,
@@ -367,7 +375,18 @@ export function registerOrgRoutes(app) {
     if (!steps.length) fields.steps = 'Descreva pelo menos uma etapa.';
     let agentId = b.agentId ? Number(b.agentId) : null;
     if (agentId && !(await db.get('SELECT 1 FROM agents WHERE id = $1 AND org_id = $2', [agentId, req.user.orgId]))) fields.agentId = 'Agente não encontrado.';
-    return { fields, data: { title, steps, agentId, trigger: clean(b.trigger, 400), rules: clean(b.rules, 2000), active: b.active !== false } };
+    // Agente responsável por cada etapa (opcional). Precisa ser da mesma empresa.
+    const rawSteps = (Array.isArray(b.steps) ? b.steps : []).map((x) => clean(x, 1000));
+    const rawAgents = Array.isArray(b.stepAgents) ? b.stepAgents : [];
+    const orgAgents = new Set((await db.all('SELECT id FROM agents WHERE org_id = $1', [req.user.orgId])).map((r) => r.id));
+    const stepAgents = [];
+    rawSteps.forEach((text, i) => {
+      if (!text) return;
+      const id = rawAgents[i] ? Number(rawAgents[i]) : null;
+      if (id && !orgAgents.has(id)) fields.steps = 'Uma das etapas está com um agente que não existe.';
+      stepAgents.push(id || null);
+    });
+    return { fields, data: { title, steps, stepAgents: stepAgents.slice(0, 40), agentId, trigger: clean(b.trigger, 400), rules: clean(b.rules, 2000), active: b.active !== false } };
   }
 
   app.get('/api/processes', requireOrg(), h(async (req, res) => {
@@ -382,8 +401,8 @@ export function registerOrgRoutes(app) {
     const { fields, data } = await validateProcess(req);
     if (Object.keys(fields).length) return res.status(400).json({ error: 'Revise os campos destacados.', fields });
     const p = await db.get(
-      `INSERT INTO processes (org_id, agent_id, title, trigger, steps, rules, active, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [req.user.orgId, data.agentId, data.title, data.trigger, json(data.steps), data.rules, data.active, req.user.id],
+      `INSERT INTO processes (org_id, agent_id, title, trigger, steps, rules, active, created_by, step_agents) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [req.user.orgId, data.agentId, data.title, data.trigger, json(data.steps), data.rules, data.active, req.user.id, json(data.stepAgents)],
     );
     res.status(201).json({ process: processView(p) });
   }));
@@ -392,9 +411,9 @@ export function registerOrgRoutes(app) {
     const { fields, data } = await validateProcess(req);
     if (Object.keys(fields).length) return res.status(400).json({ error: 'Revise os campos destacados.', fields });
     const p = await db.get(
-      `UPDATE processes SET agent_id = $3, title = $4, trigger = $5, steps = $6, rules = $7, active = $8, updated_at = now()
+      `UPDATE processes SET agent_id = $3, title = $4, trigger = $5, steps = $6, rules = $7, active = $8, step_agents = $9, updated_at = now()
         WHERE id = $1 AND org_id = $2 RETURNING *`,
-      [Number(req.params.id), req.user.orgId, data.agentId, data.title, data.trigger, json(data.steps), data.rules, data.active],
+      [Number(req.params.id), req.user.orgId, data.agentId, data.title, data.trigger, json(data.steps), data.rules, data.active, json(data.stepAgents)],
     );
     if (!p) return res.status(404).json({ error: 'Processo não encontrado.' });
     res.json({ process: processView(p) });

@@ -99,17 +99,33 @@ export default function TestChat({ agents, openCreate, refreshSummary, notify })
   return (
     <>
       <PageHead title="Testar conversas" lede="As ações que pedem aprovação vão para a fila de aprovações, como aconteceria de verdade.">
-        <div className="field inline-field">
-          <label htmlFor="chat-agent">Agente</label>
-          <select id="chat-agent" className="input" value={agentId || ''} onChange={(e) => setParams({ agente: e.target.value })}>
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </div>
       </PageHead>
+
+      <div className="chat-layout">
+      <nav className="chat-agents" aria-label="Agentes">
+        <span className="chat-agents-title">Agentes</span>
+        <ul>
+          {agents.map((a) => (
+            <li key={a.id}>
+              <button
+                type="button"
+                className={`chat-agent-item ${a.id === agentId ? 'is-active' : ''}`}
+                aria-current={a.id === agentId ? 'true' : undefined}
+                onClick={() => setParams({ agente: String(a.id) })}
+              >
+                <AgentAvatar avatar={a.avatar} name={a.name} size={36} />
+                <span>
+                  <strong>{a.name}</strong>
+                  <span className="muted">{a.area}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button type="button" className="btn btn-ghost btn-sm chat-agents-new" onClick={openCreate}>
+          + Novo agente
+        </button>
+      </nav>
 
       <section className="chat-panel" aria-label={`Conversa com ${agent?.name}`}>
         <div className="chat-panel-head">
@@ -205,6 +221,7 @@ export default function TestChat({ agents, openCreate, refreshSummary, notify })
           placeholder="Escreva, dite pelo microfone ou anexe arquivos"
         />
       </section>
+      </div>
     </>
   );
 }

@@ -141,6 +141,6 @@ export const AGENT_STATUS = {
   publicado: { label: 'Publicado', cls: 'pill-ok' },
 };
 
-export const CHANNEL_LABEL = { teste: 'Conversa de teste', whatsapp: 'WhatsApp', telegram: 'Telegram' };
+export const CHANNEL_LABEL = { teste: 'Conversa de teste', whatsapp: 'WhatsApp', telegram: 'Telegram', interno: 'Entre agentes', agendada: 'Tarefa agendada' };
 
 export const fmtNumber = (n) => Number(n || 0).toLocaleString('pt-BR');
