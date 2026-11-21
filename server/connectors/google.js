@@ -108,8 +108,9 @@ export const actions = {
     return out;
   },
 
-  async gcal_create_event({ token }, { summary, start, end, attendees, description }) {
-    const ev = await request('https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all', {
+  async gcal_create_event({ token }, { summary, start, end, attendees, description, meet = false }) {
+    // conferenceDataVersion=1 permite pedir a criação do link do Meet junto com o evento.
+    const ev = await request(`https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all${meet ? '&conferenceDataVersion=1' : ''}`, {
       method: 'POST',
       token,
       provider: P,
@@ -119,9 +120,11 @@ export const actions = {
         start: { dateTime: localDateTime(start), timeZone: TIMEZONE },
         end: { dateTime: localDateTime(end), timeZone: TIMEZONE },
         attendees: splitEmails(attendees).map((email) => ({ email })),
+        ...(meet ? { conferenceData: { createRequest: { requestId: `squadai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, conferenceSolutionKey: { type: 'hangoutsMeet' } } } } : {}),
       },
     });
-    return { criado: true, id: ev.id, link: ev.htmlLink };
+    const meetLink = ev.hangoutLink || ev.conferenceData?.entryPoints?.find((e) => e.entryPointType === 'video')?.uri || null;
+    return { criado: true, id: ev.id, link: ev.htmlLink, ...(meet ? { link_meet: meetLink || 'O Google ainda está gerando o link do Meet; ele aparece no evento em instantes.' } : {}) };
   },
 
   async gcal_list_events({ token }, { start, end }) {

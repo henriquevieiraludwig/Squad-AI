@@ -92,6 +92,7 @@ export function validateInput(action, input) {
   for (const [key, value] of Object.entries(input)) {
     if (!(key in properties)) return `Campo desconhecido: ${key}.`;
     if (properties[key].type === 'string' && typeof value !== 'string') return `O campo ${key} precisa ser texto.`;
+    if (properties[key].type === 'boolean' && typeof value !== 'boolean') return `O campo ${key} precisa ser verdadeiro ou falso.`;
   }
   return null;
 }

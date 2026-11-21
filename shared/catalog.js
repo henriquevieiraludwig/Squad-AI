@@ -83,6 +83,7 @@ export const PROVIDERS = [
 ];
 
 const str = (description) => ({ type: 'string', description });
+const bool = (description) => ({ type: 'boolean', description });
 const obj = (properties, required) => ({ type: 'object', properties, required, additionalProperties: false });
 
 export const ACTIONS = [
@@ -114,7 +115,7 @@ export const ACTIONS = [
     service: 'Calendário',
     label: 'Criar evento no calendário',
     risk: 'write',
-    description: 'Cria um evento no calendário do Outlook e convida os participantes. Datas no formato ISO 8601 sem fuso (ex.: 2026-11-25T14:00:00); o fuso é America/Sao_Paulo salvo indicação.',
+    description: 'Cria um evento no calendário do Outlook e convida os participantes. Com teams=true, cria a reunião online no Microsoft Teams e devolve o link. Use teams=true sempre que for uma reunião com outras pessoas, salvo se for presencial. Datas no formato ISO 8601 sem fuso (ex.: 2026-11-25T14:00:00); o fuso é America/Sao_Paulo salvo indicação.',
     input_schema: obj(
       {
         subject: str('Título do evento'),
@@ -122,6 +123,7 @@ export const ACTIONS = [
         end: str('Fim, ISO 8601'),
         attendees: str('E-mails dos participantes, separados por vírgula. Vazio se não houver.'),
         description: str('Descrição ou pauta. Vazio se não houver.'),
+        teams: bool('true para criar a reunião online no Microsoft Teams.'),
       },
       ['subject', 'start', 'end', 'attendees', 'description'],
     ),
@@ -229,7 +231,7 @@ export const ACTIONS = [
     service: 'Agenda',
     label: 'Criar evento na agenda',
     risk: 'write',
-    description: 'Cria um evento no Google Agenda e convida os participantes. Datas no formato ISO 8601 sem fuso (ex.: 2026-11-25T14:00:00); o fuso é America/Sao_Paulo salvo indicação.',
+    description: 'Cria um evento no Google Agenda e convida os participantes. Com meet=true, gera um link do Google Meet e devolve o link. Use meet=true sempre que for uma reunião com outras pessoas, salvo se for presencial. Datas no formato ISO 8601 sem fuso (ex.: 2026-11-25T14:00:00); o fuso é America/Sao_Paulo salvo indicação.',
     input_schema: obj(
       {
         summary: str('Título do evento'),
@@ -237,6 +239,7 @@ export const ACTIONS = [
         end: str('Fim, ISO 8601'),
         attendees: str('E-mails dos participantes, separados por vírgula. Vazio se não houver.'),
         description: str('Descrição ou pauta. Vazio se não houver.'),
+        meet: bool('true para criar um link do Google Meet para a reunião.'),
       },
       ['summary', 'start', 'end', 'attendees', 'description'],
     ),

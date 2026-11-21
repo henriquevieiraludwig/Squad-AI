@@ -107,7 +107,7 @@ export const actions = {
     }));
   },
 
-  async outlook_create_event({ token }, { subject, start, end, attendees, description }) {
+  async outlook_create_event({ token }, { subject, start, end, attendees, description, teams = false }) {
     const ev = await g('/me/events', token, {
       method: 'POST',
       body: {
@@ -116,9 +116,10 @@ export const actions = {
         start: { dateTime: localDateTime(start), timeZone: TIMEZONE },
         end: { dateTime: localDateTime(end), timeZone: TIMEZONE },
         attendees: splitEmails(attendees).map((address) => ({ emailAddress: { address }, type: 'required' })),
+        ...(teams ? { isOnlineMeeting: true, onlineMeetingProvider: 'teamsForBusiness' } : {}),
       },
     });
-    return { criado: true, id: ev.id, link: ev.webLink };
+    return { criado: true, id: ev.id, link: ev.webLink, ...(teams ? { link_teams: ev.onlineMeeting?.joinUrl || 'O link do Teams aparece no convite do evento.' } : {}) };
   },
 
   async outlook_list_events({ token }, { start, end }) {
