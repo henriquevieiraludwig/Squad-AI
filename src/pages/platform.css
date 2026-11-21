@@ -1082,7 +1082,18 @@
 /* Texto formatado das mensagens do agente */
 .fmt {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fmt p,
+.fmt li,
+.fmt a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .fmt p {
