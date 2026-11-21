@@ -43,7 +43,18 @@ export function createApp() {
   app.get('/api/health', async (_req, res) => {
     try {
       await db.get('SELECT 1 AS ok');
-      res.json({ ok: true, db: db.kind, version: VERSION, ai: Boolean(process.env.ANTHROPIC_API_KEY), email: Boolean(process.env.RESEND_API_KEY) });
+      const has = (...names) => names.every((n) => Boolean(process.env[n]));
+      res.json({
+        ok: true,
+        db: db.kind,
+        version: VERSION,
+        ai: has('ANTHROPIC_API_KEY'),
+        email: has('RESEND_API_KEY'),
+        // Apps OAuth da plataforma (só diz se existem; nunca mostra valores).
+        google: has('GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'),
+        microsoft: has('MICROSOFT_CLIENT_ID', 'MICROSOFT_CLIENT_SECRET'),
+        slack: has('SLACK_CLIENT_ID', 'SLACK_CLIENT_SECRET'),
+      });
     } catch (err) {
       res.status(503).json({ ok: false, error: err.message });
     }
