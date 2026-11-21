@@ -38,9 +38,13 @@ const processes = [
   ['Vendas', 'Follow-up de propostas', 'Busca propostas sem resposta no Gmail e prepara o lembrete para o vendedor aprovar.'],
 ];
 
-import logoMicrosoft from '../assets/logos/microsoft.webp';
+import logoOutlook from '../assets/logos/outlook.webp';
+import logoTeams from '../assets/logos/teams.webp';
+import logoSharepoint from '../assets/logos/sharepoint.webp';
+import logoOnedrive from '../assets/logos/onedrive.webp';
+import logoGoogleChat from '../assets/logos/google-chat.webp';
+import logoGoogleDrive from '../assets/logos/google-drive.webp';
 import logoWhatsapp from '../assets/logos/whatsapp.webp';
-import logoGoogle from '../assets/logos/google.webp';
 import logoTelegram from '../assets/logos/telegram.webp';
 
 // Planos. Os preços ficam como "R$ X" até serem definidos: basta trocar o campo price.
@@ -68,9 +72,13 @@ const plans = [
 
 // Logos das plataformas compatíveis (o nome fica só para leitores de tela).
 const platforms = [
-  { name: 'Microsoft 365', src: logoMicrosoft },
+  { name: 'Outlook', src: logoOutlook },
+  { name: 'Microsoft Teams', src: logoTeams },
+  { name: 'SharePoint', src: logoSharepoint },
+  { name: 'OneDrive', src: logoOnedrive },
+  { name: 'Google Chat', src: logoGoogleChat },
+  { name: 'Google Drive', src: logoGoogleDrive },
   { name: 'WhatsApp', src: logoWhatsapp },
-  { name: 'Google Workspace', src: logoGoogle },
   { name: 'Telegram', src: logoTelegram },
 ];
 
@@ -192,7 +200,7 @@ export default function Landing() {
                 Cada ação fica registrada.
               </p>
             </div>
-            <div className="platforms" role="region" aria-label="Plataformas compatíveis">
+            <div className="platforms" style={{ '--n': platforms.length }} role="region" aria-label="Plataformas compatíveis">
               <ul className="platforms-track">
                 {/* A lista aparece 3 vezes em sequência para o giro nunca mostrar um buraco; só a primeira é lida. */}
                 {[0, 1, 2].flatMap((copy) =>

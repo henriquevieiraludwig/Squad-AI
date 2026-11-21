@@ -389,7 +389,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  animation: platforms-scroll 12s linear infinite;
+  animation: platforms-scroll calc(var(--n, 4) * 3s) linear infinite;
 }
 
 .platforms:hover .platforms-track {
@@ -398,7 +398,7 @@
 
 @keyframes platforms-scroll {
   to {
-    transform: translateX(calc(-4 * var(--step)));
+    transform: translateX(calc(-1 * var(--n, 4) * var(--step)));
   }
 }
 
