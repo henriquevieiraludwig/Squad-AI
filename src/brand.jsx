@@ -42,8 +42,8 @@ export function applyBrand(brand) {
   root.setProperty('--leaf', accent);
   root.setProperty('--on-action', onColor(action) || dark);
   document.title = `${brand.name} | Agentes de IA para processos repetitivos`;
-  const icon = document.querySelector('link[rel="icon"]');
-  if (icon && brand.logo) icon.href = brand.logo;
+  // Parceiro com logotipo próprio: ele substitui todos os ícones (aba, iPhone).
+  if (brand.logo) document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((el) => (el.href = brand.logo));
 }
 
 export function BrandProvider({ children }) {
