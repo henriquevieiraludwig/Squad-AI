@@ -63,7 +63,12 @@ async function send(creds, to, text) {
 export const actions = {
   async whatsapp_send_message({ creds }, { to, text }) {
     const id = await send(creds, to, text);
-    return { enviado: true, id };
+    return {
+      aceito_pela_meta: true,
+      id,
+      aviso:
+        'A Meta aceitou o envio, mas a entrega só se confirma depois. Se esta pessoa não escreveu para o número nas últimas 24 horas, a mensagem NÃO será entregue: nesse caso use um modelo aprovado (whatsapp_send_template). Diga "enviei pelo WhatsApp" sem garantir que a pessoa recebeu.',
+    };
   },
 
   async whatsapp_send_template({ creds }, { to, template, language, params }) {
@@ -122,6 +127,35 @@ export function parseInbound(payload) {
       for (const m of v.messages || []) {
         if (m.type !== 'text') continue;
         out.push({ externalId: m.from, contact: names[m.from] || `+${m.from}`, text: m.text.body });
+      }
+    }
+  }
+  return out;
+}
+
+// Motivos de falha de entrega mais comuns, em linguagem simples.
+const FAILURE_REASONS = {
+  131047: 'Passaram mais de 24 horas desde a última mensagem desta pessoa (ou ela nunca escreveu para o número). Fora dessa janela, a Meta só entrega mensagens de modelo aprovado.',
+  131026: 'A mensagem não pôde ser entregue: o número pode não ter WhatsApp, estar com versão antiga ou não ter aceitado os termos mais recentes.',
+  131049: 'A Meta segurou a mensagem para proteger a experiência do usuário (limite de mensagens de marketing para esta pessoa).',
+  131050: 'A pessoa pediu para não receber mensagens de marketing desta empresa.',
+  131056: 'Muitas mensagens seguidas para o mesmo número. Espere um pouco antes de enviar de novo.',
+  131021: 'O destinatário é o próprio número da empresa.',
+  131030: 'O número não está na lista de números permitidos (conta em modo de teste).',
+  131042: 'Problema de pagamento na conta do WhatsApp Business (forma de pagamento na Meta).',
+  131031: 'A conta do WhatsApp Business está bloqueada ou restrita.',
+};
+
+// Avisos de falha que chegam pelo webhook depois do envio (statuses com status "failed").
+export function parseFailures(payload) {
+  const out = [];
+  for (const entry of payload?.entry || []) {
+    for (const change of entry.changes || []) {
+      for (const st of change.value?.statuses || []) {
+        if (st.status !== 'failed') continue;
+        const err = (st.errors || [])[0] || {};
+        const reason = FAILURE_REASONS[err.code] || [err.title, err.error_data?.details || err.message].filter(Boolean).join(': ') || 'A Meta não informou o motivo.';
+        out.push({ recipient: String(st.recipient_id || ''), code: String(err.code || ''), reason });
       }
     }
   }

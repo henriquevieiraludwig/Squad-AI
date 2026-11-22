@@ -46,3 +46,20 @@ it('confere a assinatura da Datafy (timestamp.corpo) e da Meta', () => {
   assert.ok(!verifySignature(meta, raw, h({ 'x-hub-signature-256': sig('errado', raw) })));
   assert.ok(verifySignature({}, raw, h({})));
 });
+
+import { parseFailures } from '../server/connectors/whatsapp.js';
+
+it('entende os avisos de falha de entrega do webhook', () => {
+  const payload = {
+    object: 'whatsapp_business_account',
+    entry: [{ changes: [{ field: 'messages', value: { statuses: [
+      { id: 'wamid.1', status: 'sent', recipient_id: '5551999990000' },
+      { id: 'wamid.2', status: 'failed', recipient_id: '5551999990000', errors: [{ code: 131047, title: 'Re-engagement message' }] },
+      { id: 'wamid.3', status: 'failed', recipient_id: '5551888880000', errors: [{ code: 999, title: 'Outro', error_data: { details: 'detalhe' } }] },
+    ] } }] }],
+  };
+  const f = parseFailures(payload);
+  assert.equal(f.length, 2);
+  assert.match(f[0].reason, /24 horas/);
+  assert.equal(f[1].reason, 'Outro: detalhe');
+});

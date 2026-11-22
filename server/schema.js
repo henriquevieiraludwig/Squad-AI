@@ -343,4 +343,18 @@ export const MIGRATIONS = [
   CREATE INDEX IF NOT EXISTS idx_dashboards_org ON dashboards (org_id, created_at DESC);
   ALTER TABLE dashboards ENABLE ROW LEVEL SECURITY;
   `,
+  `
+  -- Falhas de entrega avisadas pelo WhatsApp depois do envio (ex.: fora da janela de 24 horas).
+  CREATE TABLE IF NOT EXISTS delivery_failures (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    recipient TEXT NOT NULL,
+    code TEXT NOT NULL DEFAULT '',
+    reason TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS idx_delivery_failures_org ON delivery_failures (org_id, created_at DESC);
+  ALTER TABLE delivery_failures ENABLE ROW LEVEL SECURITY;
+  `,
 ];

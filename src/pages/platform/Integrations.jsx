@@ -372,7 +372,19 @@ function ChannelSetup({ p, agents, onRoute, notify }) {
         <>
           <CopyField id={`hook-${p.id}`} label="URL de callback do webhook" value={p.webhookUrl} notify={notify} />
           <CopyField id={`verify-${p.id}`} label="Token de verificação" value={p.verifyToken} notify={notify} />
-          <p className="hint">No painel da Meta, em WhatsApp &gt; Configuração, cole os dois valores e assine o campo messages.</p>
+          <p className="hint">No painel da Meta (ou do seu provedor, como a Datafy), cadastre a URL e assine o evento messages.</p>
+          {p.failures?.length > 0 && (
+            <div className="alert alert-error">
+              <strong>Mensagens não entregues nos últimos 7 dias</strong>
+              <ul className="delivery-failures">
+                {p.failures.map((f, i) => (
+                  <li key={i}>
+                    <span className="mono">+{f.recipient}</span>: {f.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       )}
       {p.id === 'telegram' && <p className="hint">O Telegram já envia as mensagens do bot para a plataforma.</p>}

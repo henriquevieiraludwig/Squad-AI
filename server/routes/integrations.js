@@ -9,6 +9,7 @@ import { oauthConfig, partnerById } from '../brand.js';
 import { decrypt } from '../crypto.js';
 import { enqueue } from '../jobs.js';
 import { h } from './org.js';
+import { appendMessage } from '../agent/runtime.js';
 
 const redirectUri = (provider) => `${PUBLIC_URL}/api/oauth/callback/${provider}`;
 const OAUTH_STATE_TTL_MIN = 10;
@@ -33,7 +34,7 @@ export function registerIntegrationRoutes(app) {
     const routes = Object.fromEntries(routeRows.map((r) => [r.provider, r.agent_id]));
     const actions = availableActions(featuresFor(req.partner));
 
-    const providers = PROVIDERS.map((p) => {
+    const providers = await Promise.all(PROVIDERS.map(async (p) => {
       const conn = byProvider[connectionFor(p.id)];
       const readiness = platformReady(p.via || p.id, req.partner);
       const out = {
@@ -48,11 +49,17 @@ export function registerIntegrationRoutes(app) {
       if (p.id === 'google' && featuresFor(req.partner).google_restricted) delete out.note;
       if (p.channel && conn) {
         out.webhookUrl = `${PUBLIC_URL}/api/webhooks/${p.id}/${conn.webhook_key}`;
-        if (p.id === 'whatsapp') out.verifyToken = conn.webhook_secret;
+        if (p.id === 'whatsapp') {
+          out.verifyToken = conn.webhook_secret;
+          out.failures = await db.all(
+            "SELECT recipient, reason, created_at FROM delivery_failures WHERE org_id = $1 AND provider = 'whatsapp' AND created_at > now() - interval '7 days' ORDER BY created_at DESC LIMIT 5",
+            [req.user.orgId],
+          );
+        }
         out.routeAgentId = routes[p.id] || null;
       }
       return out;
-    });
+    }));
     res.json({ providers, actions: actions.map(({ input_schema, ...a }) => a), agents });
   }));
 
@@ -169,6 +176,11 @@ export function registerIntegrationRoutes(app) {
     if (!integ) return res.sendStatus(404);
     const creds = decrypt(integ.credentials_enc);
     if (!connectors.whatsapp.verifySignature(creds, req.rawBody || Buffer.alloc(0), (name) => req.get(name))) return res.sendStatus(401);
+    for (const f of connectors.whatsapp.parseFailures(req.body)) {
+      await db.run('INSERT INTO delivery_failures (org_id, provider, recipient, code, reason) VALUES ($1, $2, $3, $4, $5)', [integ.org_id, 'whatsapp', f.recipient, f.code, f.reason]);
+      const conv = await db.get('SELECT id FROM conversations WHERE org_id = $1 AND channel = $2 AND external_id = $3 ORDER BY id DESC LIMIT 1', [integ.org_id, 'whatsapp', f.recipient]);
+      if (conv) await appendMessage(conv.id, 'system', `A última mensagem do WhatsApp não foi entregue. Motivo: ${f.reason}`, 'sistema');
+    }
     for (const msg of connectors.whatsapp.parseInbound(req.body)) {
       await enqueue('mensagem_recebida', { integrationId: integ.id, provider: 'whatsapp', msg });
     }
