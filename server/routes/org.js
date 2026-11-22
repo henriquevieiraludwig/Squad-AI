@@ -5,7 +5,7 @@ import { ACTION_BY_ID } from '../../shared/catalog.js';
 import { runAgent, findOrCreateConversation, decideRun, agentToolModes, appendMessage, AgentError } from '../agent/runtime.js';
 import { connectors, credentialsFor, ConnectorError } from '../connectors/index.js';
 import { extractText, ExtractError, MAX_DOC_CHARS } from '../knowledge.js';
-import { usageSummary, assertCanAddAgent, assertCanAddMember, assertKnowledgeRoom, LimitError } from '../usage.js';
+import { usageReport, usageSummary, assertCanAddAgent, assertCanAddMember, assertKnowledgeRoom, LimitError } from '../usage.js';
 import { createToken, sendTemplate } from './auth.js';
 
 import { AREAS } from '../../shared/areas.js';
@@ -628,6 +628,7 @@ export function registerOrgRoutes(app) {
     });
   }));
 
+  app.get('/api/usage/report', requireOrg(), h(async (req, res) => res.json(await usageReport(req.user.orgId, req.query.days))));
   app.get('/api/usage', requireOrg(), h(async (req, res) => res.json(await usageSummary(req.user.orgId))));
 
   // LGPD: o proprietário baixa todos os dados da empresa guardados na plataforma.

@@ -548,6 +548,30 @@ async function companyRoutes(s, method, path, body) {
   let m;
   const u = () => requireUser();
 
+  if (path.startsWith('/usage/report') && method === 'GET') {
+    requireUser();
+    const days = Number(new URLSearchParams(path.split('?')[1] || '').get('days')) || 30;
+    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const series = Array.from({ length: days }, (_, i) => {
+      const turns = Math.round(8 + 6 * Math.sin(i / 2.3) + (i % 7 === 5 ? -6 : 3));
+      return { day: fmt.format(new Date(Date.now() - (days - 1 - i) * 86400000)), turns, tokens: turns * 9200, cost: turns * 0.031 };
+    });
+    const turns = series.reduce((a, x) => a + x.turns, 0);
+    const cost = series.reduce((a, x) => a + x.cost, 0);
+    return {
+      days,
+      currency: 'USD',
+      total: { turns, input: turns * 2100, output: turns * 900, cacheRead: turns * 6000, cacheWrite: turns * 200, cost },
+      series,
+      byAgent: s.agents.slice(0, 3).map((a, i) => ({ agentId: a.id, name: a.name, turns: Math.round(turns / (i + 1.6)), tokens: 0, cost: cost / (i + 1.6) })),
+      byChannel: [
+        { channel: 'whatsapp', turns: Math.round(turns * 0.6), tokens: 0, cost: cost * 0.6 },
+        { channel: 'teste', turns: Math.round(turns * 0.3), tokens: 0, cost: cost * 0.3 },
+        { channel: 'agendada', turns: Math.round(turns * 0.1), tokens: 0, cost: cost * 0.1 },
+      ],
+    };
+  }
+
   if (path === '/usage' && method === 'GET') {
     const me = u();
     const used = s.docs.filter((d) => d.orgId === me.orgId).reduce((n, d) => n + d.content.length, 0);

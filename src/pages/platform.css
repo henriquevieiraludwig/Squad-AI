@@ -2754,3 +2754,26 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* Relatório de consumo da IA */
+.usage-report .panel-head { gap: 12px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line, #e3e8e2); border-radius: 10px; padding: 2px; }
+.seg button { border: 0; background: none; padding: 5px 10px; border-radius: 8px; font: inherit; font-size: 0.82rem; color: var(--ink-soft, #5b6b61); cursor: pointer; }
+.seg button.is-on { background: #10271e; color: #b8f479; }
+.usage-kpis { list-style: none; margin: 14px 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; }
+.usage-kpis li { display: grid; gap: 4px; padding: 12px; border-radius: 12px; background: #f3f6f1; min-width: 0; }
+.usage-kpis span { font-size: 0.8rem; color: var(--ink-soft, #5b6b61); }
+.usage-kpis strong { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.usage-chart { position: relative; margin: 6px 0 14px; }
+.usage-chart svg { width: 100%; height: auto; display: block; }
+.usage-axis { stroke: #d5ddd3; }
+.usage-bar { fill: #346a42; }
+.usage-bar.is-hover { fill: #10271e; }
+.usage-label { font-size: 11px; fill: #7a8a80; }
+.usage-tip { position: absolute; top: 0; transform: translateX(-50%); display: grid; gap: 2px; padding: 6px 10px; background: #10271e; color: #eef4ee; border-radius: 8px; font-size: 0.78rem; pointer-events: none; white-space: nowrap; }
+.usage-tip .muted { color: #a9bdb0; }
+.usage-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 10px; }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.usage-table th { text-align: left; font-weight: 600; font-size: 0.75rem; color: var(--ink-soft, #5b6b61); padding: 6px 4px; border-bottom: 1px solid #e3e8e2; }
+.usage-table td { padding: 7px 4px; border-bottom: 1px solid #eef2ec; }
+.usage-table th:not(:first-child), .usage-table td:not(:first-child) { text-align: right; }

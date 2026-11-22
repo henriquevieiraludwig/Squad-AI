@@ -5,6 +5,7 @@ import { api } from '../../api.js';
 import { can } from '../../auth.jsx';
 import { PageHead, fmtNumber } from './common.jsx';
 import AgentList from './AgentList.jsx';
+import UsageReport from './UsageReport.jsx';
 
 export default function Home({ user, agents, summary, loadError, reloadAgents, openCreate }) {
   const navigate = useNavigate();
@@ -124,7 +125,9 @@ export default function Home({ user, agents, summary, loadError, reloadAgents, o
       </ul>
 
       <div className="home-grid">
-        {config ? (
+        {config && ready && doneCount === checklist.length ? (
+          <UsageReport />
+        ) : config ? (
           <section className="panel" aria-labelledby="checklist-title">
             <div className="panel-head">
               <h2 id="checklist-title">Primeiros passos</h2>

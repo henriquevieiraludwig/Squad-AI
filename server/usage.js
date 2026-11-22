@@ -1,6 +1,7 @@
 // Medição de uso e limites por empresa (definidos pelo parceiro).
 import { db } from './db.js';
 import { mergeSettings } from './brand.js';
+import { costUsd } from '../shared/pricing.js';
 
 export class LimitError extends Error {
   constructor(message) {
@@ -97,4 +98,50 @@ export async function recordUsage({ orgId, agentId, conversationId, channel, mod
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [orgId, agentId, conversationId, channel, model, totals.input, totals.output, totals.cacheRead, totals.cacheWrite],
   );
+}
+
+// Relatório de consumo da API do Claude: custo estimado por dia, por agente e por canal.
+export async function usageReport(orgId, days = 30) {
+  const d = Math.min(Math.max(Number(days) || 30, 1), 365);
+  const rows = await db.all(
+    `SELECT to_char(e.created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS day, e.agent_id, a.name AS agent_name, e.channel, e.model,
+            COUNT(*)::int AS turns, SUM(e.input_tokens)::int AS input, SUM(e.output_tokens)::int AS output,
+            SUM(e.cache_read_tokens)::int AS cache_read, SUM(e.cache_write_tokens)::int AS cache_write
+       FROM usage_events e LEFT JOIN agents a ON a.id = e.agent_id
+      WHERE e.org_id = $1 AND e.created_at >= now() - ($2 || ' days')::interval
+      GROUP BY 1, 2, 3, 4, 5`,
+    [orgId, String(d)],
+  );
+  const total = { turns: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
+  const byDay = new Map();
+  const byAgent = new Map();
+  const byChannel = new Map();
+  const add = (map, key, base, r, cost) => {
+    const x = map.get(key) || { ...base, turns: 0, tokens: 0, cost: 0 };
+    x.turns += r.turns;
+    x.tokens += r.input + r.output + r.cache_read + r.cache_write;
+    x.cost += cost;
+    map.set(key, x);
+  };
+  for (const r of rows) {
+    const cost = costUsd(r.model, { input: r.input, output: r.output, cacheRead: r.cache_read, cacheWrite: r.cache_write });
+    total.turns += r.turns;
+    total.input += r.input;
+    total.output += r.output;
+    total.cacheRead += r.cache_read;
+    total.cacheWrite += r.cache_write;
+    total.cost += cost;
+    add(byDay, r.day, { day: r.day }, r, cost);
+    add(byAgent, r.agent_id ?? 0, { agentId: r.agent_id, name: r.agent_name || 'Agente removido' }, r, cost);
+    add(byChannel, r.channel, { channel: r.channel }, r, cost);
+  }
+  // Série diária completa (dias sem uso aparecem com zero).
+  const series = [];
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' });
+  for (let i = d - 1; i >= 0; i--) {
+    const day = fmt.format(new Date(Date.now() - i * 86400000));
+    series.push(byDay.get(day) || { day, turns: 0, tokens: 0, cost: 0 });
+  }
+  const sortCost = (m) => [...m.values()].sort((a, b) => b.cost - a.cost);
+  return { days: d, total, series, byAgent: sortCost(byAgent), byChannel: sortCost(byChannel), currency: 'USD' };
 }
