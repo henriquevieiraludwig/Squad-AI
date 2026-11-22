@@ -354,6 +354,73 @@ function CopyField({ id, label, value, notify }) {
   );
 }
 
+const OPENING_STATUS = {
+  APPROVED: ['Aprovado', 'O agente já consegue iniciar conversas com quem não escreveu nas últimas 24 horas.'],
+  PENDING: ['Em análise na Meta', 'Costuma levar de minutos a algumas horas. Clique em Verificar para atualizar.'],
+  IN_APPEAL: ['Em recurso na Meta', 'Aguarde a resposta da Meta.'],
+  REJECTED: ['Recusado pela Meta', 'Tente criar como marketing (a Meta costuma aprovar; cada envio custa um pouco mais).'],
+  PAUSED: ['Pausado pela Meta', 'A Meta pausou o modelo por baixa qualidade. Tente de novo mais tarde.'],
+  DISABLED: ['Desativado pela Meta', 'Crie de novo como marketing.'],
+};
+
+// Modelo de abertura: fora da janela de 24 horas, a Meta só entrega mensagens de modelo aprovado.
+function OpeningTemplate({ opening = {}, notify }) {
+  const [state, setState] = useState(opening);
+  const [waba, setWaba] = useState(opening.wabaId || '');
+  const [busy, setBusy] = useState(false);
+  async function run(body) {
+    setBusy(true);
+    try {
+      const r = await api('/integrations/whatsapp/opening-template', { method: 'POST', body: { wabaId: waba, ...body } });
+      setState(r.opening);
+      notify(body.refresh ? 'Status atualizado.' : 'Modelo enviado para aprovação da Meta.');
+    } catch (err) {
+      notify(err.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+  const [label, help] = OPENING_STATUS[state.status] || [];
+  return (
+    <div className="opening-template">
+      <strong>Iniciar conversas (fora das 24 horas)</strong>
+      <p className="hint">
+        A Meta só entrega mensagem para quem não escreveu nas últimas 24 horas se ela for um modelo aprovado. Com o modelo de abertura, o agente
+        manda o recado dentro dele automaticamente: "Olá! Aqui é (sua empresa). Tenho uma mensagem para você: (recado). Responda esta mensagem para
+        continuarmos a conversa."
+      </p>
+      {state.status ? (
+        <p>
+          <span className={`pill ${state.status === 'APPROVED' ? 'pill-ok' : state.status === 'REJECTED' ? 'pill-danger' : 'pill-warn'}`}>{label || state.status}</span>{' '}
+          <span className="hint">{help}</span>
+          {state.rejectedReason && <span className="hint"> Motivo: {state.rejectedReason}.</span>}
+        </p>
+      ) : null}
+      <div className="field">
+        <label htmlFor="waba-id">WABA ID (ID da conta do WhatsApp Business)</label>
+        <input id="waba-id" className="input mono" value={waba} onChange={(e) => setWaba(e.target.value.replace(/\D/g, ''))} placeholder="Só números, ex.: 123456789012345" />
+      </div>
+      <div className="row-actions">
+        {!state.status && (
+          <button type="button" className="btn btn-primary btn-sm" disabled={busy || !waba} onClick={() => run({})}>
+            {busy ? 'Criando...' : 'Criar modelo de abertura'}
+          </button>
+        )}
+        {state.status && state.status !== 'APPROVED' && (
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => run({ refresh: true })}>
+            Verificar aprovação
+          </button>
+        )}
+        {['REJECTED', 'DISABLED'].includes(state.status) && state.category !== 'MARKETING' && (
+          <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => run({ category: 'MARKETING' })}>
+            Criar como marketing
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ChannelSetup({ p, agents, onRoute, notify }) {
   return (
     <div className="channel-setup">
@@ -373,6 +440,7 @@ function ChannelSetup({ p, agents, onRoute, notify }) {
           <CopyField id={`hook-${p.id}`} label="URL de callback do webhook" value={p.webhookUrl} notify={notify} />
           <CopyField id={`verify-${p.id}`} label="Token de verificação" value={p.verifyToken} notify={notify} />
           <p className="hint">No painel da Meta (ou do seu provedor, como a Datafy), cadastre a URL e assine o evento messages.</p>
+          <OpeningTemplate opening={p.opening} notify={notify} />
           {p.failures?.length > 0 && (
             <div className="alert alert-error">
               <strong>Mensagens não entregues nos últimos 7 dias</strong>

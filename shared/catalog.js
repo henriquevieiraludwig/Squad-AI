@@ -485,7 +485,7 @@ export const ACTIONS = [
     service: 'Mensagens',
     label: 'Enviar mensagem no WhatsApp',
     risk: 'write',
-    description: 'Envia uma mensagem de texto pelo WhatsApp da empresa. Só funciona para contatos que falaram com a empresa nas últimas 24 horas (regra da Meta).',
+    description: 'Envia uma mensagem pelo WhatsApp da empresa. Se a pessoa escreveu nas últimas 24 horas, vai como texto; se não, a plataforma envia automaticamente pelo modelo de abertura aprovado (regra da Meta). Se der erro, conte ao usuário o motivo exatamente como veio, sem dizer que enviou.',
     input_schema: obj({ to: str('Número com DDI e DDD, só dígitos. Ex.: 5511999998888'), text: str('Texto da mensagem') }, ['to', 'text']),
   },
   {

@@ -2,6 +2,7 @@ import { toWhatsApp, chunkLines } from '../../shared/format.js';
 // WhatsApp Business pela Cloud API oficial da Meta. Também é canal de entrada.
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { request, ConnectorError } from './http.js';
+import { db } from '../db.js';
 
 const VERSION = process.env.META_GRAPH_VERSION || 'v23.0';
 const GRAPH = `https://graph.facebook.com/${VERSION}`;
@@ -48,6 +49,92 @@ export const token = {
   },
 };
 
+// Brasil: o mesmo celular pode aparecer com ou sem o 9 depois do DDD.
+export function numberVariants(digits) {
+  const d = String(digits).replace(/\D/g, '');
+  const out = [d];
+  const m = d.match(/^55(\d{2})(\d+)$/);
+  if (m && m[2].length === 9 && m[2].startsWith('9')) out.push(`55${m[1]}${m[2].slice(1)}`);
+  if (m && m[2].length === 8 && /^[6-9]/.test(m[2])) out.push(`55${m[1]}9${m[2]}`);
+  return out;
+}
+
+const WINDOW_MS = 24 * 3600 * 1000 - 5 * 60 * 1000; // 24 horas, com 5 minutos de folga
+
+// Última mensagem que a pessoa mandou para o número (abre a janela de 24 horas da Meta).
+export async function lastInbound(orgId, to) {
+  if (!orgId) return null;
+  return db.get(
+    `SELECT c.external_id, MAX(m.created_at) AS at FROM conversations c JOIN messages m ON m.conversation_id = c.id
+      WHERE c.org_id = $1 AND c.channel = 'whatsapp' AND c.external_id = ANY($2) AND m.author = 'contato'
+      GROUP BY c.external_id ORDER BY at DESC LIMIT 1`,
+    [orgId, numberVariants(to)],
+  );
+}
+
+// Modelo de abertura: a Meta só entrega mensagem para quem não escreveu nas últimas 24h se for um modelo aprovado.
+export const OPENING = {
+  name: 'abertura_conversa',
+  language: 'pt_BR',
+  body: 'Olá! Aqui é {{1}}. Tenho uma mensagem para você:\n\n{{2}}\n\nResponda esta mensagem para continuarmos a conversa.',
+  example: ['a equipe da Zadok', 'Seu pedido foi separado e sai para entrega amanhã de manhã.'],
+};
+const templateName = (category) => (category === 'MARKETING' ? `${OPENING.name}_mkt` : OPENING.name);
+// Variáveis de modelo não aceitam quebras de linha, tabulação nem muitos espaços seguidos.
+export const templateParam = (t) => String(t).replace(/[\r\n\t]+/g, ' ').replace(/ {2,}/g, ' ').trim().slice(0, 1000);
+
+export async function createOpeningTemplate(creds, category = 'UTILITY') {
+  if (!creds.wabaId) throw new ConnectorError('Informe o WABA ID (ID da conta do WhatsApp Business).', { status: 400 });
+  const name = templateName(category);
+  try {
+    await request(`${baseOf(creds)}/${creds.wabaId}/message_templates`, {
+      method: 'POST',
+      token: creds.accessToken,
+      provider: P,
+      body: {
+        name,
+        language: OPENING.language,
+        category,
+        components: [{ type: 'BODY', text: OPENING.body, example: { body_text: [OPENING.example] } }],
+      },
+    });
+  } catch (err) {
+    // Já existe com esse nome: só acompanha o status.
+    if (!/exist/i.test(err.message)) throw err;
+  }
+  return refreshOpeningTemplate({ ...creds, opening: { name, language: OPENING.language, category } });
+}
+
+export async function refreshOpeningTemplate(creds) {
+  const o = creds.opening;
+  if (!o || !creds.wabaId) return creds;
+  const r = await request(`${baseOf(creds)}/${creds.wabaId}/message_templates?name=${o.name}&fields=name,status,language,category,rejected_reason`, {
+    token: creds.accessToken,
+    provider: P,
+  });
+  const t = (r?.data || []).find((x) => x.name === o.name && x.language === o.language) || (r?.data || [])[0];
+  return { ...creds, opening: { ...o, status: t?.status || 'PENDING', category: t?.category || o.category, rejectedReason: t?.rejected_reason && t.rejected_reason !== 'NONE' ? t.rejected_reason : null } };
+}
+
+async function sendTemplate(creds, to, name, language, values) {
+  const data = await request(`${baseOf(creds)}/${creds.phoneNumberId}/messages`, {
+    method: 'POST',
+    token: creds.accessToken,
+    provider: P,
+    body: {
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: {
+        name,
+        language: { code: language || 'pt_BR' },
+        components: values.length ? [{ type: 'body', parameters: values.map((text) => ({ type: 'text', text })) }] : undefined,
+      },
+    },
+  });
+  return data.messages?.[0]?.id;
+}
+
 async function send(creds, to, text) {
   const digits = String(to).replace(/\D/g, '');
   if (digits.length < 10) throw new ConnectorError('Número inválido. Use DDI + DDD + número, só dígitos.');
@@ -61,14 +148,38 @@ async function send(creds, to, text) {
 }
 
 export const actions = {
-  async whatsapp_send_message({ creds }, { to, text }) {
-    const id = await send(creds, to, text);
-    return {
-      aceito_pela_meta: true,
-      id,
-      aviso:
-        'A Meta aceitou o envio, mas a entrega só se confirma depois. Se esta pessoa não escreveu para o número nas últimas 24 horas, a mensagem NÃO será entregue: nesse caso use um modelo aprovado (whatsapp_send_template). Diga "enviei pelo WhatsApp" sem garantir que a pessoa recebeu.',
-    };
+  // Dentro da janela de 24h: texto normal. Fora dela: o modelo de abertura aprovado, que a Meta entrega.
+  async whatsapp_send_message({ creds, orgId }, { to, text }) {
+    const digits = String(to).replace(/\D/g, '');
+    if (digits.length < 10) throw new ConnectorError('Número inválido. Use DDI + DDD + número, só dígitos.');
+    const last = await lastInbound(orgId, digits);
+    if (last && Date.now() - new Date(last.at).getTime() < WINDOW_MS) {
+      const id = await send(creds, last.external_id, text);
+      return { enviado: true, id, como: 'texto (a pessoa escreveu nas últimas 24 horas)' };
+    }
+    let o = creds.opening;
+    if (o && o.status !== 'APPROVED') {
+      try {
+        o = (await refreshOpeningTemplate(creds)).opening;
+      } catch {
+        /* segue com o status guardado */
+      }
+    }
+    if (o?.status === 'APPROVED') {
+      const org = orgId ? await db.get('SELECT name FROM organizations WHERE id = $1', [orgId]) : null;
+      const id = await sendTemplate(creds, last?.external_id || digits, o.name, o.language, [templateParam(org?.name || 'nossa equipe'), templateParam(text)]);
+      return {
+        enviado: true,
+        id,
+        como: 'modelo de abertura (a pessoa não escreveu nas últimas 24 horas, então foi pelo modelo aprovado pela Meta)',
+        aviso: 'Mensagens de modelo têm cobrança da Meta. Quando a pessoa responder, a conversa segue normalmente.',
+      };
+    }
+    throw new ConnectorError(
+      o
+        ? `Não enviado: esta pessoa não escreveu para o número nas últimas 24 horas, e o modelo de abertura ainda não foi aprovado pela Meta (status: ${o.status}${o.rejectedReason ? `, motivo: ${o.rejectedReason}` : ''}).`
+        : 'Não enviado: esta pessoa não escreveu para o número nas últimas 24 horas, e a Meta só entrega nesses casos um modelo aprovado. Um administrador precisa criar o modelo de abertura em Integrações > WhatsApp (um clique). Avise o usuário disso.',
+    );
   },
 
   async whatsapp_send_template({ creds }, { to, template, language, params }) {
@@ -79,22 +190,8 @@ export const actions = {
       .split('|')
       .map((v) => v.trim())
       .filter(Boolean);
-    const data = await request(`${baseOf(creds)}/${creds.phoneNumberId}/messages`, {
-      method: 'POST',
-      token: creds.accessToken,
-      provider: P,
-      body: {
-        messaging_product: 'whatsapp',
-        to: digits,
-        type: 'template',
-        template: {
-          name: template,
-          language: { code: language || 'pt_BR' },
-          components: values.length ? [{ type: 'body', parameters: values.map((text) => ({ type: 'text', text })) }] : undefined,
-        },
-      },
-    });
-    return { enviado: true, id: data.messages?.[0]?.id };
+    const id = await sendTemplate(creds, digits, template, language, values.map(templateParam));
+    return { enviado: true, id };
   },
 };
 

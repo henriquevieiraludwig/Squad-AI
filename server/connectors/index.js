@@ -31,6 +31,11 @@ export function featuresFor(partner) {
   return { google_restricted: Boolean(oauthConfig(partner, 'google').restricted) };
 }
 
+// Atualiza só as credenciais guardadas (ex.: dados do modelo de abertura do WhatsApp).
+export async function updateCredentials(orgId, providerId, creds) {
+  await db.run('UPDATE integrations SET credentials_enc = $3 WHERE org_id = $1 AND provider = $2', [orgId, providerId, encrypt(creds)]);
+}
+
 export const getIntegration = (orgId, providerId) => db.get('SELECT * FROM integrations WHERE org_id = $1 AND provider = $2', [orgId, providerId]);
 
 export async function saveIntegration(orgId, providerId, { creds, accountLabel, userId, webhookKey = null, webhookSecret = null }) {
@@ -104,5 +109,5 @@ export async function executeAction(orgId, actionId, input) {
   const impl = connectors[providerId]?.actions?.[actionId];
   if (!impl) throw new ConnectorError(`A ação ${actionId} ainda não tem implementação.`);
   const creds = await credentialsFor(orgId, providerId);
-  return impl({ creds, token: creds.access_token }, input);
+  return impl({ creds, token: creds.access_token, orgId }, input);
 }

@@ -3,7 +3,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { db } from '../db.js';
 import { requireOrg } from '../auth.js';
 import { PROVIDERS, availableActions, PROVIDER_BY_ID, connectionFor } from '../../shared/catalog.js';
-import { connectors, platformReady, featuresFor, getIntegration, saveIntegration, newWebhookIds, disconnect } from '../connectors/index.js';
+import { connectors, platformReady, featuresFor, getIntegration, saveIntegration, newWebhookIds, disconnect, updateCredentials } from '../connectors/index.js';
 import { PUBLIC_URL } from '../connectors/http.js';
 import { oauthConfig, partnerById } from '../brand.js';
 import { decrypt } from '../crypto.js';
@@ -51,6 +51,8 @@ export function registerIntegrationRoutes(app) {
         out.webhookUrl = `${PUBLIC_URL}/api/webhooks/${p.id}/${conn.webhook_key}`;
         if (p.id === 'whatsapp') {
           out.verifyToken = conn.webhook_secret;
+          const c = decrypt(conn.credentials_enc);
+          out.opening = { wabaId: c.wabaId || '', ...(c.opening || {}) };
           out.failures = await db.all(
             "SELECT recipient, reason, created_at FROM delivery_failures WHERE org_id = $1 AND provider = 'whatsapp' AND created_at > now() - interval '7 days' ORDER BY created_at DESC LIMIT 5",
             [req.user.orgId],
@@ -61,6 +63,21 @@ export function registerIntegrationRoutes(app) {
       return out;
     }));
     res.json({ providers, actions: actions.map(({ input_schema, ...a }) => a), agents });
+  }));
+
+  // ---------- WhatsApp: modelo de abertura (para falar com quem não escreveu nas últimas 24h) ----------
+
+  app.post('/api/integrations/whatsapp/opening-template', requireOrg('configurar'), h(async (req, res) => {
+    const row = await getIntegration(req.user.orgId, 'whatsapp');
+    if (!row) return res.status(404).json({ error: 'Conecte o WhatsApp primeiro.' });
+    let creds = decrypt(row.credentials_enc);
+    const wabaId = String(req.body?.wabaId ?? creds.wabaId ?? '').trim();
+    if (!/^\d{5,}$/.test(wabaId)) return res.status(400).json({ error: 'O WABA ID tem só dígitos. Ele aparece no painel do provedor (ex.: Datafy) ou no WhatsApp Manager da Meta.' });
+    creds = { ...creds, wabaId };
+    const category = req.body?.category === 'MARKETING' ? 'MARKETING' : 'UTILITY';
+    creds = req.body?.refresh && creds.opening ? await connectors.whatsapp.refreshOpeningTemplate(creds) : await connectors.whatsapp.createOpeningTemplate(creds, category);
+    await updateCredentials(req.user.orgId, 'whatsapp', creds);
+    res.json({ opening: { wabaId, ...creds.opening } });
   }));
 
   // ---------- OAuth (Microsoft 365, Google Workspace, Slack) ----------
