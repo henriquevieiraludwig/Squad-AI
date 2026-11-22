@@ -85,6 +85,26 @@ describe('tarefas agendadas', () => {
     assert.match(mail.text, /2 reuniões/);
   });
 
+  it('dá para conversar com o agente na conversa da tarefa agendada', async () => {
+    const s = (await ana.get('/api/schedules')).body.schedules[0];
+    const convId = s.conversationId;
+    // Mesmo que alguém tenha "assumido" a conversa antes, falar ali devolve o controle ao agente.
+    const { db } = await import('../server/db.js');
+    await db.run(`UPDATE conversations SET handled_by = 'humano' WHERE id = $1`, [convId]);
+    const detail = (await ana.get(`/api/conversations/${convId}`)).body.conversation;
+    assert.equal(detail.canContinue, true);
+    assert.equal(detail.canReply, false, 'sem botões de assumir/devolver');
+
+    P.fakes.claude.queue.push(text('Combinado, desmarco as duas.'));
+    const r = await ana.post(`/api/agents/${agentId}/chat`, { message: 'Desmarque as reuniões com Claudio e Silvia', conversationId: convId });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.conversationId, convId, 'continua na mesma conversa da tarefa');
+    const sent = JSON.stringify(P.fakes.claude.requests.at(-1).messages);
+    assert.match(sent, /conversando com Ana \(ana@sol\.com\)/);
+    assert.match(sent, /uma pessoa da equipe está falando com você aqui/);
+    assert.equal((await ana.get(`/api/conversations/${convId}`)).body.conversation.handledBy, 'agente');
+  });
+
   it('executar agora, pausar e apagar', async () => {
     P.fakes.claude.queue.push(text('Feito.'));
     assert.equal((await ana.post(`/api/schedules/${scheduleId}/run`)).status, 200);

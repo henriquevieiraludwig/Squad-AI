@@ -195,11 +195,20 @@ export function registerOrgRoutes(app) {
     }
     let conversationId = Number(req.body?.conversationId) || null;
     if (conversationId) {
-      const conv = await db.get('SELECT id, external_id FROM conversations WHERE id = $1 AND org_id = $2 AND agent_id = $3 AND channel = $4', [conversationId, req.user.orgId, agent.id, 'teste']);
+      const conv = await db.get(
+        `SELECT id, channel, external_id FROM conversations WHERE id = $1 AND org_id = $2 AND agent_id = $3 AND channel IN ('teste', 'agendada', 'interno')`,
+        [conversationId, req.user.orgId, agent.id],
+      );
       const mine = `user:${req.user.id}`;
-      if (!conv || (conv.external_id && conv.external_id !== mine)) conversationId = null;
-      // Conversas antigas, de antes de cada pessoa ter as suas, passam a ser de quem as continua.
-      else if (!conv.external_id) await db.run('UPDATE conversations SET external_id = $2 WHERE id = $1', [conv.id, mine]);
+      if (!conv) conversationId = null;
+      else if (conv.channel === 'teste') {
+        if (conv.external_id && conv.external_id !== mine) conversationId = null;
+        // Conversas antigas, de antes de cada pessoa ter as suas, passam a ser de quem as continua.
+        else if (!conv.external_id) await db.run('UPDATE conversations SET external_id = $2 WHERE id = $1', [conv.id, mine]);
+      } else {
+        // Tarefa agendada ou conversa entre agentes: qualquer pessoa da equipe conversa ali; o agente segue com o controle.
+        await db.run(`UPDATE conversations SET handled_by = 'agente', assigned_user = NULL WHERE id = $1`, [conv.id]);
+      }
     }
     if (!conversationId) {
       // A conversa de teste é de cada pessoa com cada agente: continua de onde parou, salvo em "Nova conversa".
@@ -212,7 +221,7 @@ export function registerOrgRoutes(app) {
         forceNew: Boolean(req.body?.newConversation),
       });
     }
-    const { reply, actions } = await runAgent({ orgId: req.user.orgId, agentId: agent.id, conversationId, text: message, content, author: 'contato' });
+    const { reply, actions } = await runAgent({ orgId: req.user.orgId, agentId: agent.id, conversationId, text: message, content, author: 'contato', actorUserId: req.user.id });
     res.json({ conversationId, reply, actions });
   }));
 
@@ -494,9 +503,12 @@ export function registerOrgRoutes(app) {
         agentName: c.agent_name,
         agentAvatar: c.agent_avatar || null,
         agentId: c.agent_id,
-        canReply: c.channel !== 'teste',
+        // Assumir/devolver só existe onde há um cliente do outro lado (WhatsApp, Telegram).
+        canReply: !['teste', 'agendada', 'interno'].includes(c.channel),
         // Conversa de teste da própria pessoa: pode continuar a qualquer momento.
-        canContinue: c.channel === 'teste' && (!c.external_id || c.external_id === `user:${req.user.id}`) && can(req.user, 'conversar'),
+        canContinue:
+          can(req.user, 'conversar') &&
+          (['agendada', 'interno'].includes(c.channel) || (c.channel === 'teste' && (!c.external_id || c.external_id === `user:${req.user.id}`))),
       },
       messages: timeline,
       actions: runs.map((r) => ({ id: r.id, label: ACTION_BY_ID[r.action_id]?.label || r.action_id, status: r.status, input: r.input, at: r.requested_at })),

@@ -99,7 +99,11 @@ Formato das respostas:
 
   const dynamic = `${memoryPromptBlock(memories)}
 ${person ? `\nVocê está conversando com ${person}. Trate a pessoa pelo nome.\n` : ''}
-Canal: ${CHANNEL_NOTES[channel] || channel}
+Canal: ${
+    person && channel === 'agendada'
+      ? 'Conversa de uma tarefa agendada. Agora uma pessoa da equipe está falando com você aqui: responda normalmente, faça o que ela pedir e pergunte o que faltar. As execuções automáticas da tarefa continuam nos horários marcados.'
+      : CHANNEL_NOTES[channel] || channel
+  }
 Hoje é ${today}. Fuso horário: ${TZ}.`;
 
   return { stable, dynamic };
@@ -281,7 +285,7 @@ async function runHandoff(ctx, block, others) {
   }
 }
 
-async function runAgentUnlocked({ orgId, agentId, conversationId, text, content = null, author = 'contato', depth = 0 }) {
+async function runAgentUnlocked({ orgId, agentId, conversationId, text, content = null, author = 'contato', depth = 0, actorUserId = null }) {
   const agent = await db.get('SELECT * FROM agents WHERE id = $1 AND org_id = $2', [agentId, orgId]);
   if (!agent) throw new AgentError('Agente não encontrado.', 404);
   await assertCanRunAgent(orgId);
@@ -290,8 +294,9 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
   const conv = await db.get('SELECT channel, external_id, contact_label FROM conversations WHERE id = $1', [conversationId]);
   const contactKey = contactKeyFor(conv);
   // Na conversa de teste, quem fala é alguém da equipe logado na plataforma (user:ID).
+  // Ou quem escreveu agora pela plataforma (por exemplo, conversando na conversa de uma tarefa agendada).
   const userMatch = conv.channel === 'teste' && /^user:(\d+)$/.exec(conv.external_id || '');
-  const teamUserId = userMatch ? Number(userMatch[1]) : null;
+  const teamUserId = actorUserId || (userMatch ? Number(userMatch[1]) : null);
 
   const [tools, knowledge, memories, others] = await Promise.all([
     enabledTools(agent, partner),
@@ -314,8 +319,8 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
   ];
   // Na conversa de teste, quem fala é alguém da equipe logado na plataforma: o agente sabe quem é.
   let person = null;
-  if (userMatch) {
-    const u = await db.get('SELECT name, email, role FROM users WHERE id = $1 AND org_id = $2', [Number(userMatch[1]), orgId]);
+  if (teamUserId) {
+    const u = await db.get('SELECT name, email, role FROM users WHERE id = $1 AND org_id = $2', [teamUserId, orgId]);
     const ROLE_NAMES = { owner: 'proprietário(a)', admin: 'administrador(a)', approver: 'aprovador(a)', member: 'membro da equipe' };
     if (u) person = `${u.name} (${u.email}), ${ROLE_NAMES[u.role] || 'da equipe'} da ${org.name}, pela plataforma`;
   }

@@ -248,7 +248,7 @@ function ConversationDetail({ id, user, notify, onChange, onBack }) {
         )}
       </div>
 
-      {human && <div className="alert alert-warn conv-banner">{c.assignedTo || 'Uma pessoa da equipe'} está atendendo. O agente não responde enquanto isso.</div>}
+      {human && c.canReply && <div className="alert alert-warn conv-banner">{c.assignedTo || 'Uma pessoa da equipe'} está atendendo. O agente não responde enquanto isso.</div>}
 
       <div className="conv-log">
         {data.messages.map((m) => (

@@ -24,6 +24,13 @@ afterEach(() => {
 const ctx = { token: 'tok' };
 
 describe('Microsoft 365', () => {
+  it('cancela evento do Outlook', async () => {
+    replies = [{}];
+    await ms.outlook_delete_event(ctx, { eventId: 'AAM=', comment: '' });
+    assert.match(calls[0].url, /\/me\/events\/AAM%3D\/cancel$/);
+    assert.equal(JSON.parse(calls[0].body).comment, 'Reunião cancelada.');
+  });
+
   it('cria evento com reunião do Teams', async () => {
     replies = [{ id: 'ev1', webLink: 'https://outlook/ev1', onlineMeeting: { joinUrl: 'https://teams.microsoft.com/l/meetup-join/x' } }];
     const r = await ms.outlook_create_event(ctx, { subject: 'Reunião', start: '2026-11-25T14:00:00', end: '2026-11-25T15:00:00', attendees: 'a@b.com', description: '', teams: true });
@@ -71,6 +78,21 @@ describe('Microsoft 365', () => {
 });
 
 describe('Google Workspace', () => {
+  it('cancela e remarca evento avisando os convidados', async () => {
+    replies = [{}];
+    const del = await google.gcal_delete_event(ctx, { eventId: 'ev 1' });
+    assert.equal(calls[0].method, 'DELETE');
+    assert.match(calls[0].url, /events\/ev%201\?sendUpdates=all$/);
+    assert.equal(del.cancelado, true);
+    calls = [];
+    replies = [{ id: 'ev1', start: { dateTime: '2026-11-23T15:30:00-03:00' } }];
+    await google.gcal_update_event(ctx, { eventId: 'ev1', start: '2026-11-23T15:30:00', end: '2026-11-23T16:30:00', summary: '' });
+    assert.equal(calls[0].method, 'PATCH');
+    const body = JSON.parse(calls[0].body);
+    assert.equal(body.start.dateTime, '2026-11-23T15:30:00');
+    assert.equal(body.summary, undefined, 'campo vazio não muda');
+  });
+
   it('cria evento com link do Google Meet', async () => {
     replies = [{ id: 'e1', htmlLink: 'https://cal/e1', hangoutLink: 'https://meet.google.com/abc-defg-hij' }];
     const r = await google.gcal_create_event(ctx, { summary: 'Reunião', start: '2026-11-25T14:00:00', end: '2026-11-25T15:00:00', attendees: 'a@b.com', description: '', meet: true });

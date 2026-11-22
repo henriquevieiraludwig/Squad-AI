@@ -147,12 +147,37 @@ export const actions = {
     });
     const data = await request(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${q}`, { token, provider: P });
     return (data.items || []).map((e) => ({
+      id: e.id,
       titulo: e.summary,
       inicio: e.start?.dateTime || e.start?.date,
       fim: e.end?.dateTime || e.end?.date,
       participantes: (e.attendees || []).map((a) => a.email),
       link: e.htmlLink,
     }));
+  },
+
+  // Cancela o evento e avisa os convidados.
+  async gcal_delete_event({ token }, { eventId }) {
+    await request(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}?sendUpdates=all`, { method: 'DELETE', token, provider: P });
+    return { cancelado: true, id: eventId };
+  },
+
+  // Remarca ou altera o evento (só os campos informados) e avisa os convidados.
+  async gcal_update_event({ token }, { eventId, summary, start, end, attendees, description }) {
+    const body = {};
+    if (summary) body.summary = summary;
+    if (description) body.description = description;
+    if (start) body.start = { dateTime: localDateTime(start), timeZone: TIMEZONE };
+    if (end) body.end = { dateTime: localDateTime(end), timeZone: TIMEZONE };
+    if (attendees) body.attendees = splitEmails(attendees).map((email) => ({ email }));
+    if (!Object.keys(body).length) throw new ConnectorError('Diga o que mudar no evento.');
+    const ev = await request(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}?sendUpdates=all`, {
+      method: 'PATCH',
+      token,
+      provider: P,
+      body,
+    });
+    return { atualizado: true, id: ev.id, inicio: ev.start?.dateTime, fim: ev.end?.dateTime, link: ev.htmlLink };
   },
 
   async gdrive_search_files({ token }, { query }) {

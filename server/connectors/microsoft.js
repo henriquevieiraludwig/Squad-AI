@@ -128,18 +128,43 @@ export const actions = {
     const q = new URLSearchParams({
       startDateTime: localDateTime(start),
       endDateTime: localDateTime(end),
-      $select: 'subject,start,end,location,attendees,organizer',
+      $select: 'id,subject,start,end,location,attendees,organizer',
       $orderby: 'start/dateTime',
       $top: '25',
     });
     const data = await g(`/me/calendarView?${q}`, token, { headers: { Prefer: `outlook.timezone="${TIMEZONE}"` } });
     return (data.value || []).map((e) => ({
+      id: e.id,
       titulo: e.subject,
       inicio: e.start?.dateTime,
       fim: e.end?.dateTime,
       local: e.location?.displayName || '',
       participantes: (e.attendees || []).map((a) => a.emailAddress?.address),
     }));
+  },
+
+  // Cancela o evento (avisando os participantes, quando você é o organizador).
+  async outlook_delete_event({ token }, { eventId, comment }) {
+    try {
+      await g(`/me/events/${encodeURIComponent(eventId)}/cancel`, token, { method: 'POST', body: { comment: comment || 'Reunião cancelada.' } });
+    } catch (err) {
+      // Quem não é organizador não pode "cancelar": nesse caso o evento é só removido da própria agenda.
+      if (err.status !== 400 && err.status !== 403) throw err;
+      await g(`/me/events/${encodeURIComponent(eventId)}`, token, { method: 'DELETE' });
+    }
+    return { cancelado: true, id: eventId };
+  },
+
+  async outlook_update_event({ token }, { eventId, subject, start, end, attendees, description }) {
+    const body = {};
+    if (subject) body.subject = subject;
+    if (description) body.body = { contentType: 'Text', content: description };
+    if (start) body.start = { dateTime: localDateTime(start), timeZone: TIMEZONE };
+    if (end) body.end = { dateTime: localDateTime(end), timeZone: TIMEZONE };
+    if (attendees) body.attendees = splitEmails(attendees).map((address) => ({ emailAddress: { address }, type: 'required' }));
+    if (!Object.keys(body).length) throw new ConnectorError('Diga o que mudar no evento.');
+    const ev = await g(`/me/events/${encodeURIComponent(eventId)}`, token, { method: 'PATCH', body });
+    return { atualizado: true, id: ev.id, link: ev.webLink };
   },
 
   async teams_list_channels({ token }) {
