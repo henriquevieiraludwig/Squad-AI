@@ -314,4 +314,17 @@ export const MIGRATIONS = [
   -- A plataforma (Zadok/Squad AI) deixa de ter cadastro aberto no site.
   UPDATE partners SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{allowSignup}', 'false'::jsonb) WHERE is_default;
   `,
+  `
+  -- Contatos recebidos pelo site da Zadok (formulário "Falar com a Zadok" e lista de espera do ERP).
+  CREATE TABLE IF NOT EXISTS leads (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    company TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL DEFAULT '',
+    interest TEXT NOT NULL DEFAULT 'Zadok',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+  `,
 ];

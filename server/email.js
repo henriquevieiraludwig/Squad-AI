@@ -90,6 +90,12 @@ export async function emailTemplates(partner) {
       cta: 'Revisar aprovações',
       url: `${base}/app/aprovacoes`,
     }),
+    lead: ({ name, email, company, message, interest }) => ({
+      subject: `Novo contato pelo site: ${name}${company ? ` (${company})` : ''} · ${interest}`,
+      title: `Novo contato: ${name}`,
+      intro: [`Interesse: ${interest}`, `E-mail: ${email}`, company ? `Empresa: ${company}` : '', message ? `Mensagem: ${message}` : ''].filter(Boolean).join('\n'),
+      outro: 'Responda direto para o e-mail da pessoa.',
+    }),
     scheduled: ({ title, agentName, result, ok, conversationId }) => ({
       subject: `${ok ? '✅' : '⚠️'} Tarefa agendada: ${title}`,
       title: ok ? `${agentName} concluiu "${title}"` : `${agentName} não conseguiu concluir "${title}"`,

@@ -151,6 +151,11 @@ export async function demoApi(path, { method = 'GET', body = {} } = {}) {
     return { agents, areas: AREAS };
   }
 
+  if (route === 'POST /contact') {
+    if (!clean(body.name) || !EMAIL_RE.test(clean(body.email))) throw new ApiError('Informe o seu nome e um e-mail válido.', 400);
+    return { ok: true };
+  }
+
   if (route === 'POST /agents') {
     const u = requireUser();
     const name = clean(body.name, 80);

@@ -58,3 +58,17 @@ describe('acesso pelo endereço da empresa', () => {
     assert.match(mail.text, /\/acesso\/padaria-sao-joao/);
   });
 });
+
+describe('contato pelo site da Zadok', () => {
+  it('grava o contato e avisa os administradores da plataforma', async () => {
+    assert.equal((await P.client().post('/api/contact', { name: '', email: 'x' })).status, 400);
+    const r = await P.client().post('/api/contact', { name: 'Marina', email: 'marina@loja.com', company: 'Loja M', message: 'Quero automatizar o WhatsApp', interest: 'Zadok ERP' });
+    assert.equal(r.status, 201);
+    await P.drainJobs();
+    const { outbox } = await import('../server/email.js');
+    const mail = outbox.find((m) => /Novo contato pelo site: Marina/.test(m.subject));
+    assert.ok(mail, 'e-mail para a equipe');
+    assert.match(mail.text, /marina@loja\.com/);
+    assert.match(mail.subject, /Zadok ERP/);
+  });
+});

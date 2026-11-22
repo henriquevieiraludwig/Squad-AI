@@ -1,6 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { GuestOnly, RequireAuth, RequirePartner } from './auth.jsx';
 import Landing from './pages/Landing.jsx';
+import ZadokHome from './pages/ZadokHome.jsx';
+import ZadokErp from './pages/ZadokErp.jsx';
+import { useBrand } from './brand.jsx';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
 import Platform from './pages/Platform.jsx';
@@ -13,6 +16,7 @@ const guest = (el) => <GuestOnly>{el}</GuestOnly>;
 
 export default function App() {
   const newVersion = useNewVersion();
+  const brand = useBrand();
   return (
     <>
       {DEMO && <p className="demo-banner">Versão de demonstração. Os dados ficam salvos só neste navegador.</p>}
@@ -25,7 +29,10 @@ export default function App() {
         </div>
       )}
       <Routes>
-        <Route path="/" element={<Landing />} />
+        {/* Na plataforma, "/" é o site da Zadok e o Squad AI é a página de produto. Nos parceiros, "/" é o Squad AI com a marca deles. */}
+        <Route path="/" element={brand.isPlatform ? <ZadokHome /> : <Landing />} />
+        <Route path="/produtos/squad-ai" element={brand.isPlatform ? <Landing embedded /> : <Navigate to="/" replace />} />
+        <Route path="/produtos/zadok-erp" element={brand.isPlatform ? <ZadokErp /> : <Navigate to="/" replace />} />
         <Route path="/entrar" element={guest(<Login />)} />
         <Route path="/acesso/:slug" element={guest(<Login />)} />
         <Route path="/criar-conta" element={guest(<Signup />)} />

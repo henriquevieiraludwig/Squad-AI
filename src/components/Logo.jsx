@@ -24,7 +24,7 @@ export function MatrizMark({ size = 18 }) {
   );
 }
 
-// Assinatura no rodapé. Na plataforma: "uma solução matriz.ai". Nos parceiros, só se eles quiserem mostrar.
+// Assinatura no rodapé. Na plataforma: "por zadok". Nos parceiros, só se eles quiserem mostrar.
 export function Endorsement({ onDark = false }) {
   const brand = useBrand();
   if (!brand.isPlatform) {
@@ -39,9 +39,10 @@ export function Endorsement({ onDark = false }) {
   }
   return (
     <span className="endorse" style={{ color: onDark ? 'var(--on-dark-soft)' : 'var(--ink-faint)' }}>
-      uma solução
-      <MatrizMark />
-      <strong style={{ color: onDark ? 'var(--on-dark)' : 'var(--ink)' }}>matriz.ai</strong>
+      por
+      <strong style={{ color: onDark ? 'var(--on-dark)' : 'var(--ink)', fontWeight: 600 }}>
+        zad<span style={{ color: onDark ? 'var(--lime)' : 'var(--leaf)' }}>o</span>k
+      </strong>
     </span>
   );
 }

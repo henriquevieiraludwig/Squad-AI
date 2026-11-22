@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { ZadokHeader, ZadokFooter, PorZadok } from '../components/Zadok.jsx';
+import '../pages/zadok.css';
 import Logo, { Endorsement } from '../components/Logo.jsx';
 import HeroDemo from '../components/HeroDemo.jsx';
 import HeroTeam from '../components/HeroTeam.jsx';
@@ -82,49 +85,59 @@ const platforms = [
   { name: 'Telegram', src: logoTelegram },
 ];
 
-export default function Landing() {
+// Ação principal do site: sem login nem cadastro aqui. Cada empresa entra pelo endereço próprio, recebido por e-mail.
+function Cta({ className, children }) {
   const { user } = useAuth();
   const brand = useBrand();
-  // Sem cadastro aberto (comum em parceiros white label), a ação principal leva ao login.
-  const primaryTo = user ? homeFor(user) : brand.allowSignup ? '/criar-conta' : '/entrar';
-  const primaryLabel = user ? 'Abrir plataforma' : brand.allowSignup ? 'Criar conta da empresa' : 'Entrar na plataforma';
+  if (user) {
+    return (
+      <Link to={homeFor(user)} className={className}>
+        Abrir plataforma
+      </Link>
+    );
+  }
+  const href = brand.isPlatform ? '/#contato' : brand.supportEmail ? `mailto:${brand.supportEmail}` : '#planos';
+  return (
+    <a href={href} className={className}>
+      {children || (brand.isPlatform ? 'Falar com a Zadok' : 'Fale com a gente')}
+    </a>
+  );
+}
+
+// "embedded": página do produto dentro do site da Zadok (cabeçalho e rodapé da marca-mãe).
+export default function Landing({ embedded = false }) {
+  const { user } = useAuth();
+  const brand = useBrand();
+  useEffect(() => {
+    if (embedded) document.title = 'Squad AI | Agentes de IA para processos repetitivos · Zadok';
+  }, [embedded]);
 
   return (
-    <div className="landing">
+    <div className={`landing ${embedded ? 'zsite' : ''}`}>
       <a href="#conteudo" className="skip-link">
         Pular para o conteúdo
       </a>
 
-      <header className="site-header">
+      {embedded && <ZadokHeader onDark={false} />}
+      <header className={`site-header ${embedded ? 'site-header-product' : ''}`}>
         <div className="wrap site-header-inner">
-          <Logo />
-          <nav className="site-nav" aria-label="Principal">
+          <div className="product-brand">
+            <Logo to={embedded ? '/produtos/squad-ai' : '/'} />
+            {embedded && <PorZadok />}
+          </div>
+          <nav className="site-nav" aria-label="Seções do Squad AI">
             <a href="#como-funciona">Como funciona</a>
             <a href="#integracoes">Integrações</a>
             <a href="#processos">Processos</a>
             <a href="#seguranca">Segurança</a>
             <a href="#planos">Planos</a>
           </nav>
-          <div className="site-actions">
-            {user ? (
-              <Link to={homeFor(user)} className="btn btn-secondary">
-                Abrir plataforma
-              </Link>
-            ) : brand.allowSignup ? (
-              <>
-                <Link to="/entrar" className="btn btn-ghost">
-                  Entrar
-                </Link>
-                <Link to="/criar-conta" className="btn btn-secondary">
-                  Criar conta
-                </Link>
-              </>
-            ) : (
-              <Link to="/entrar" className="btn btn-secondary">
-                Entrar
-              </Link>
-            )}
-          </div>
+          {/* Dentro do site da Zadok, o cabeçalho da marca-mãe já tem o "Falar com a Zadok". */}
+          {!embedded && (
+            <div className="site-actions">
+              <Cta className="btn btn-secondary" />
+            </div>
+          )}
         </div>
       </header>
 
@@ -141,9 +154,7 @@ export default function Landing() {
                 deixe os agentes executarem as tarefas do dia a dia. Você decide o que precisa de aprovação.
               </p>
               <div className="hero-ctas">
-                <Link to={primaryTo} className="btn btn-primary btn-lg">
-                  {primaryLabel}
-                </Link>
+                <Cta className="btn btn-primary btn-lg" />
                 <a href="#como-funciona" className="btn btn-secondary btn-lg">
                   Ver como funciona
                 </a>
@@ -303,9 +314,7 @@ export default function Landing() {
                     <span>/mês</span>
                   </p>
                   <p className="plan-text">{plan.text}</p>
-                  <Link to={primaryTo} className={`btn ${plan.featured ? 'btn-primary' : 'btn-secondary'} plan-cta`}>
-                    {user ? 'Abrir plataforma' : 'Começar agora'}
-                  </Link>
+                  <Cta className={`btn ${plan.featured ? 'btn-primary' : 'btn-secondary'} plan-cta`}>Quero este plano</Cta>
                   <ul className="plan-features">
                     {plan.features.map((f) => (
                       <li key={f}>
@@ -323,25 +332,27 @@ export default function Landing() {
         <section className="cta-band">
           <div className="wrap cta-inner">
             <h2>Escolha um processo e coloque o primeiro agente para trabalhar esta semana.</h2>
-            <Link to={primaryTo} className="btn btn-primary btn-lg">
-              {primaryLabel}
-            </Link>
+            <Cta className="btn btn-primary btn-lg" />
           </div>
         </section>
       </main>
 
-      <footer className="site-footer">
-        <div className="wrap footer-inner">
-          <Logo />
-          <Endorsement />
-          <p>
-            © {new Date().getFullYear()} {brand.name}.{' '}
-            {brand.termsUrl && <a href={brand.termsUrl}>Termos de uso</a>}{' '}
-            {brand.privacyUrl && <a href={brand.privacyUrl}>Privacidade</a>}{' '}
-            {brand.supportEmail && <a href={`mailto:${brand.supportEmail}`}>{brand.supportEmail}</a>}
-          </p>
-        </div>
-      </footer>
+      {embedded ? (
+        <ZadokFooter />
+      ) : (
+    <footer className="site-footer">
+          <div className="wrap footer-inner">
+            <Logo />
+            <Endorsement />
+            <p>
+              © {new Date().getFullYear()} {brand.name}.{' '}
+              {brand.termsUrl && <a href={brand.termsUrl}>Termos de uso</a>}{' '}
+              {brand.privacyUrl && <a href={brand.privacyUrl}>Privacidade</a>}{' '}
+              {brand.supportEmail && <a href={`mailto:${brand.supportEmail}`}>{brand.supportEmail}</a>}
+            </p>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

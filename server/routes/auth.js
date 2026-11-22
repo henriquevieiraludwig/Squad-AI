@@ -113,6 +113,23 @@ export function registerAuthRoutes(app) {
 
   app.get('/api/auth/me', (req, res) => res.json({ user: req.user }));
 
+  // Formulário de contato do site da Zadok: grava e avisa os administradores da plataforma por e-mail.
+  app.post('/api/contact', async (req, res) => {
+    if (!rateLimit({ key: `contact:${req.ip}`, max: 5, windowMs: 60 * 60_000 })) return res.status(429).json({ error: 'Muitos envios seguidos. Tente de novo mais tarde.' });
+    const name = clean(req.body.name, 120);
+    const email = clean(req.body.email, 200).toLowerCase();
+    const company = clean(req.body.company, 160);
+    const message = clean(req.body.message, 2000);
+    const interest = clean(req.body.interest, 60) || 'Zadok';
+    if (!name || !EMAIL_RE.test(email)) return res.status(400).json({ error: 'Informe o seu nome e um e-mail válido.' });
+    await db.run('INSERT INTO leads (name, email, company, message, interest) VALUES ($1, $2, $3, $4, $5)', [name, email, company, message, interest]);
+    const platform = await db.get('SELECT id FROM partners WHERE is_default LIMIT 1');
+    const admins = await db.all('SELECT email FROM users WHERE partner_id = $1 AND is_partner_admin', [platform.id]);
+    const to = new Set([...admins.map((a) => a.email), ...(process.env.BOOTSTRAP_ADMIN_EMAIL ? [process.env.BOOTSTRAP_ADMIN_EMAIL.toLowerCase()] : [])]);
+    for (const addr of to) await sendTemplate(platform.id, addr, 'lead', [{ name, email, company, message, interest }]);
+    res.status(201).json({ ok: true });
+  });
+
   // Tela de login com o nome da empresa (endereço de acesso /acesso/<slug>).
   app.get('/api/access/:slug', async (req, res) => {
     const org = await db.get(`SELECT name, slug FROM organizations WHERE partner_id = $1 AND slug = $2 AND status = 'ativa'`, [req.partner.id, String(req.params.slug).toLowerCase()]);
