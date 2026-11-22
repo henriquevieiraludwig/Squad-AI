@@ -162,7 +162,7 @@ export default function ChatComposer({ id, value, onChange, onSend, sending, pla
         />
         <button className="btn btn-primary" type="submit" disabled={sending || (!value.trim() && !files.length)}>
           {sending ? <span className="spinner" aria-hidden="true" /> : <IconSend />}
-          Enviar
+          <span className="composer-send-label">Enviar</span>
         </button>
       </div>
     </form>

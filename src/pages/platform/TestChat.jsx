@@ -229,7 +229,7 @@ export default function TestChat({ agents, openCreate, refreshSummary, notify })
           onSend={send}
           sending={sending}
           notify={notify}
-          placeholder="Escreva, dite pelo microfone ou anexe arquivos"
+          placeholder="Escreva uma mensagem"
         />
       </section>
       </div>

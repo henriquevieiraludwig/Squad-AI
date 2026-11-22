@@ -2777,3 +2777,106 @@
 .usage-table th { text-align: left; font-weight: 600; font-size: 0.75rem; color: var(--ink-soft, #5b6b61); padding: 6px 4px; border-bottom: 1px solid #e3e8e2; }
 .usage-table td { padding: 7px 4px; border-bottom: 1px solid #eef2ec; }
 .usage-table th:not(:first-child), .usage-table td:not(:first-child) { text-align: right; }
+
+/* ---------- Celular ---------- */
+.page-head-actions {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 560px) {
+  /* Botões do topo das páginas: dois por linha, sem passar da tela. */
+  .page-head-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .page-head-actions > :only-child,
+  .page-head-actions > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .page-head-actions .btn {
+    padding-inline: 10px;
+    white-space: normal;
+  }
+
+  /* Etapas do processo: o texto ocupa a linha toda; agente e setas embaixo. */
+  .step-row > .input:not(.step-agent) {
+    flex: 1 1 calc(100% - 40px);
+  }
+
+  .step-row > .step-agent {
+    flex: 1 1 0;
+    margin-left: 32px;
+  }
+
+  /* Chat: mais espaço para as mensagens. */
+  .content:has(.chat-panel) .page-head {
+    margin-bottom: 8px;
+  }
+
+  .content:has(.chat-panel) .page-head p {
+    display: none;
+  }
+
+  .content:has(.chat-panel) .page-head h1 {
+    font-size: 1.5rem;
+  }
+
+  .chat-layout {
+    gap: 8px;
+  }
+
+  .chat-agents {
+    padding: 4px;
+  }
+
+  .chat-agent-item .muted {
+    display: none;
+  }
+
+  .chat-agent-item .agent-photo,
+  .chat-agent-item .agent-avatar {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .chat-panel-head {
+    padding: 10px 12px;
+    gap: 6px 10px;
+  }
+
+  .chat-agent .agent-photo,
+  .chat-agent .agent-avatar {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  .chat-panel-links {
+    gap: 8px;
+    font-size: 0.85rem;
+  }
+
+  .composer-row {
+    gap: 4px;
+  }
+
+  .composer-icon {
+    width: 36px;
+    padding-inline: 0;
+  }
+
+  .composer-send-label {
+    display: none;
+  }
+
+  .composer-row .btn-primary {
+    width: 46px;
+    padding-inline: 0;
+    justify-content: center;
+  }
+
+  .msg {
+    max-width: 92%;
+  }
+}
