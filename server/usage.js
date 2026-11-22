@@ -9,13 +9,22 @@ export class LimitError extends Error {
   }
 }
 
+// Empresa do dono da plataforma (tem um administrador do parceiro padrão como membro): sem limites de
+// agentes, pessoas e mensagens. O espaço de contexto continua limitado (é o que cabe na leitura do modelo).
+export const UNLIMITED = 1_000_000_000;
+
 export async function limitsFor(orgId) {
   const row = await db.get(
-    `SELECT o.limits, p.settings FROM organizations o JOIN partners p ON p.id = o.partner_id WHERE o.id = $1`,
+    `SELECT o.limits, p.settings,
+            EXISTS (SELECT 1 FROM users u JOIN partners pp ON pp.id = u.partner_id
+                     WHERE u.org_id = o.id AND u.is_partner_admin AND pp.is_default) AS platform_owner
+       FROM organizations o JOIN partners p ON p.id = o.partner_id WHERE o.id = $1`,
     [orgId],
   );
   const defaults = mergeSettings(row?.settings).defaultLimits;
-  return { ...defaults, ...(row?.limits || {}) };
+  const limits = { ...defaults, ...(row?.limits || {}) };
+  if (row?.platform_owner) return { ...limits, agents: UNLIMITED, members: UNLIMITED, messagesPerMonth: UNLIMITED, unlimited: true };
+  return limits;
 }
 
 export async function monthUsage(orgId) {

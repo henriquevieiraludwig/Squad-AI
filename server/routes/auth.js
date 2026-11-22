@@ -1,3 +1,4 @@
+import { uniqueSlug } from '../orgs.js';
 // Cadastro, login, recuperação de senha, verificação de e-mail e convites.
 import { db, json } from '../db.js';
 import {
@@ -73,7 +74,7 @@ export function registerAuthRoutes(app) {
     }
     const passwordHash = await hashPassword(password);
     const user = await db.tx(async (t) => {
-      const org = await t.get('INSERT INTO organizations (partner_id, name) VALUES ($1, $2) RETURNING id', [req.partner.id, company]);
+      const org = await t.get('INSERT INTO organizations (partner_id, name, slug) VALUES ($1, $2, $3) RETURNING id', [req.partner.id, company, await uniqueSlug(t, req.partner.id, company)]);
       return t.get(
         `INSERT INTO users (partner_id, org_id, name, email, password_hash, role) VALUES ($1, $2, $3, $4, $5, 'owner') RETURNING id, email`,
         [req.partner.id, org.id, name, email, passwordHash],
@@ -91,9 +92,15 @@ export function registerAuthRoutes(app) {
     if (!rateLimit({ key, max: 8, windowMs: 15 * 60_000 })) return res.status(429).json({ error: 'Muitas tentativas seguidas. Aguarde 15 minutos e tente de novo.' });
     if (!email || !password) return res.status(400).json({ error: 'Informe e-mail e senha para entrar.' });
 
-    const user = await db.get('SELECT id, password_hash FROM users WHERE partner_id = $1 AND email = $2', [req.partner.id, email]);
+    const user = await db.get(
+      'SELECT u.id, u.password_hash, o.slug AS org_slug FROM users u LEFT JOIN organizations o ON o.id = u.org_id WHERE u.partner_id = $1 AND u.email = $2',
+      [req.partner.id, email],
+    );
     const ok = user ? await verifyPassword(password, user.password_hash) : false;
     if (!ok) return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
+    // Entrando pelo endereço de uma empresa, a conta precisa ser dessa empresa.
+    const slug = clean(req.body.slug, 60);
+    if (slug && user.org_slug !== slug) return res.status(403).json({ error: 'Esta conta não pertence a esta empresa. Use o endereço de acesso que você recebeu por e-mail.' });
     resetRateLimit(key);
     await createSession(res, user.id);
     res.json({ ok: true });
@@ -105,6 +112,13 @@ export function registerAuthRoutes(app) {
   });
 
   app.get('/api/auth/me', (req, res) => res.json({ user: req.user }));
+
+  // Tela de login com o nome da empresa (endereço de acesso /acesso/<slug>).
+  app.get('/api/access/:slug', async (req, res) => {
+    const org = await db.get(`SELECT name, slug FROM organizations WHERE partner_id = $1 AND slug = $2 AND status = 'ativa'`, [req.partner.id, String(req.params.slug).toLowerCase()]);
+    if (!org) return res.status(404).json({ error: 'Endereço de acesso não encontrado. Confira o link que você recebeu por e-mail.' });
+    res.json({ org: { name: org.name, slug: org.slug } });
+  });
 
   // ---------- Senha ----------
 

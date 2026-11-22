@@ -27,6 +27,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/entrar" element={guest(<Login />)} />
+        <Route path="/acesso/:slug" element={guest(<Login />)} />
         <Route path="/criar-conta" element={guest(<Signup />)} />
         <Route path="/esqueci-senha" element={guest(<ForgotPassword />)} />
         <Route path="/redefinir-senha" element={<ResetPassword />} />

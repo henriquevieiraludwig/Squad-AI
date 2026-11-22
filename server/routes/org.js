@@ -9,6 +9,7 @@ import { usageSummary, assertCanAddAgent, assertCanAddMember, assertKnowledgeRoo
 import { createToken, sendTemplate } from './auth.js';
 
 import { AREAS } from '../../shared/areas.js';
+import { accessUrlFor } from '../orgs.js';
 import { saveMemory, deleteMemory, MEMORY_MAX_CHARS } from '../agent/memory.js';
 import { buildUserContent, AttachmentError } from '../agent/attachments.js';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -267,7 +268,8 @@ export function registerOrgRoutes(app) {
     // Um convite pendente por e-mail: o novo substitui o anterior.
     await db.run(`DELETE FROM tokens WHERE org_id = $1 AND kind = 'convite' AND email = $2 AND used_at IS NULL`, [req.user.orgId, email]);
     const raw = await createToken({ kind: 'convite', partnerId: req.partner.id, orgId: req.user.orgId, email, role, createdBy: req.user.id, ttlMs: 7 * DAY });
-    await sendTemplate(req.partner.id, email, 'invite', [raw, { orgName: req.user.orgName, inviterName: req.user.name, roleLabel: ROLES[role] }]);
+    const accessUrl = req.user.orgSlug ? await accessUrlFor(req.partner, req.user.orgSlug) : null;
+    await sendTemplate(req.partner.id, email, 'invite', [raw, { orgName: req.user.orgName, inviterName: req.user.name, roleLabel: ROLES[role], accessUrl }]);
     res.status(201).json({ ok: true });
   }));
 

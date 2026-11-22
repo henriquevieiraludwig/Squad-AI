@@ -188,7 +188,7 @@ export default function Home({ user, agents, summary, loadError, reloadAgents, o
                       <span className="meter-top">
                         <span>{m.label}</span>
                         <span className="muted tabular">
-                          {fmtNumber(m.used)} de {fmtNumber(m.max)}
+                          {m.max >= 1e9 ? `${fmtNumber(m.used)} · ilimitado` : `${fmtNumber(m.used)} de ${fmtNumber(m.max)}`}
                         </span>
                       </span>
                       <span className={`progress ${pct >= 90 ? 'progress-warn' : ''}`} aria-hidden="true">

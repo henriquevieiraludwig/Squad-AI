@@ -15,7 +15,8 @@ export const DEFAULT_BRAND = {
 };
 
 export const DEFAULT_LIMITS = { agents: 5, members: 10, messagesPerMonth: 2000, knowledgeChars: 400_000 };
-export const DEFAULT_SETTINGS = { allowSignup: true, defaultLimits: DEFAULT_LIMITS };
+// Cadastro aberto desligado: as empresas são criadas pela plataforma/parceiro e recebem o acesso por e-mail.
+export const DEFAULT_SETTINGS = { allowSignup: false, defaultLimits: DEFAULT_LIMITS };
 
 const PLATFORM_NAME = process.env.PLATFORM_NAME || 'Squad AI';
 const PLATFORM_SLUG = process.env.PLATFORM_SLUG || 'squad-ai';

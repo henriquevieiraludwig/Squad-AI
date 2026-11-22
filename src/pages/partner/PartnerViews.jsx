@@ -132,22 +132,27 @@ export function Clients({ pid, partner, notify }) {
                       <td>
                         <strong>{c.name}</strong>
                         <span className="muted cell-sub">Desde {formatDate(c.createdAt)}</span>
+                        {c.accessUrl && (
+                          <a className="link cell-sub" href={c.accessUrl} target="_blank" rel="noreferrer" title="Endereço de acesso da empresa">
+                            {c.accessUrl.replace(/^https?:\/\//, '')}
+                          </a>
+                        )}
                       </td>
                       <td>
                         {c.ownerEmail}
                         {c.ownerPending && <span className="muted cell-sub">Convite pendente</span>}
                       </td>
                       <td className="num tabular">
-                        {fmtNumber(c.messages)} / {fmtNumber(c.limits.messagesPerMonth)}
+                        {fmtNumber(c.messages)} / {c.limits.messagesPerMonth >= 1e9 ? '∞' : fmtNumber(c.limits.messagesPerMonth)}
                         <span className={`mini-bar ${pct >= 90 ? 'is-warn' : ''}`} aria-hidden="true">
                           <span style={{ width: `${Math.min(100, pct)}%` }} />
                         </span>
                       </td>
                       <td className="num tabular">
-                        {c.agents} / {c.limits.agents}
+                        {c.agents} / {c.limits.agents >= 1e9 ? '∞' : c.limits.agents}
                       </td>
                       <td className="num tabular">
-                        {c.members} / {c.limits.members}
+                        {c.members} / {c.limits.members >= 1e9 ? '∞' : c.limits.members}
                       </td>
                       <td>
                         <span className={`pill ${c.status === 'ativa' ? 'pill-ok' : 'pill-danger'}`}>{c.status === 'ativa' ? 'Ativo' : 'Suspenso'}</span>

@@ -73,7 +73,7 @@ export async function emailTemplates(partner) {
       url: `${base}/redefinir-senha?token=${token}`,
       outro: 'Se você não pediu, ignore esta mensagem. Sua senha continua a mesma.',
     }),
-    invite: (token, { orgName, inviterName, roleLabel }) => ({
+    invite: (token, { orgName, inviterName, roleLabel, accessUrl }) => ({
       subject: orgName ? `${inviterName} convidou você para ${orgName} no ${partner.name}` : `Seu acesso ao painel do ${partner.name}`,
       title: orgName ? `Convite para ${orgName}` : `Acesso ao painel do ${partner.name}`,
       intro: orgName
@@ -81,6 +81,7 @@ export async function emailTemplates(partner) {
         : `Você recebeu acesso como ${roleLabel}. O convite vale por 7 dias.`,
       cta: 'Aceitar convite',
       url: `${base}/convite?token=${token}`,
+      outro: accessUrl ? `Depois de criar a sua senha, entre sempre pelo endereço da sua empresa: ${accessUrl}` : undefined,
     }),
     approval: ({ orgName, agentName, label, count }) => ({
       subject: `${count > 1 ? `${count} ações aguardam` : 'Uma ação aguarda'} sua aprovação em ${orgName}`,

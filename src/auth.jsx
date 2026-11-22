@@ -25,8 +25,8 @@ export function AuthProvider({ children }) {
     refresh();
   }, [refresh]);
 
-  const login = async (email, password) => {
-    await api('/auth/login', { method: 'POST', body: { email, password } });
+  const login = async (email, password, slug) => {
+    await api('/auth/login', { method: 'POST', body: { email, password, slug } });
     return refresh();
   };
 

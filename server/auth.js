@@ -74,6 +74,7 @@ function shapeUser(row) {
     roleLabel: row.org_id ? ROLES[row.role] : 'Equipe do parceiro',
     orgId: row.org_id,
     orgName: row.org_name || null,
+    orgSlug: row.org_slug || null,
     orgStatus: row.org_status || null,
     partnerId: row.partner_id,
     isPartnerAdmin: row.is_partner_admin,
@@ -89,7 +90,7 @@ export async function loadUser(req, _res, next) {
   if (!token) return next();
   try {
     const row = await db.get(
-      `SELECT u.*, o.name AS org_name, o.status AS org_status, p.is_default AS partner_is_default, s.expires_at
+      `SELECT u.*, o.name AS org_name, o.slug AS org_slug, o.status AS org_status, p.is_default AS partner_is_default, s.expires_at
          FROM sessions s
          JOIN users u ON u.id = s.user_id
          JOIN partners p ON p.id = u.partner_id

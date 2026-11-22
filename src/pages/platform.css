@@ -2590,3 +2590,13 @@
   font-size: 0.85rem;
   margin: 0;
 }
+
+.access-address {
+  display: grid;
+  gap: 12px;
+}
+
+.access-address h2 {
+  font-size: var(--step-1);
+  font-weight: 600;
+}

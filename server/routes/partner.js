@@ -1,3 +1,4 @@
+import { uniqueSlug, accessUrlFor } from '../orgs.js';
 // Console do parceiro (white label) e console da plataforma (Matriz AI).
 import { db, json } from '../db.js';
 import { ROLES } from '../auth.js';
@@ -202,7 +203,7 @@ export function registerPartnerRoutes(app) {
     const name = clean(req.body?.name, 120);
     if (!name) return res.status(400).json({ error: 'Informe o nome da empresa.', fields: { name: 'Obrigatório.' } });
     await db.tx(async (t) => {
-      const org = await t.get('INSERT INTO organizations (partner_id, name) VALUES ($1, $2) RETURNING id', [req.user.partnerId, name]);
+      const org = await t.get('INSERT INTO organizations (partner_id, name, slug) VALUES ($1, $2, $3) RETURNING id', [req.user.partnerId, name, await uniqueSlug(t, req.user.partnerId, name)]);
       await t.run(`UPDATE users SET org_id = $2, role = 'owner' WHERE id = $1`, [req.user.id, org.id]);
     });
     res.status(201).json({ ok: true });
@@ -214,7 +215,7 @@ export function registerPartnerRoutes(app) {
     const p = await targetPartner(req, res);
     if (!p) return;
     const orgs = await db.all(
-      `SELECT o.id, o.name, o.status, o.limits, o.created_at,
+      `SELECT o.id, o.name, o.slug, o.status, o.limits, o.created_at,
               (SELECT COUNT(*)::int FROM users u WHERE u.org_id = o.id) AS members,
               (SELECT COUNT(*)::int FROM agents a WHERE a.org_id = o.id) AS agents,
               (SELECT COUNT(*)::int FROM usage_events e WHERE e.org_id = o.id AND e.created_at >= date_trunc('month', now())) AS messages,
@@ -225,11 +226,14 @@ export function registerPartnerRoutes(app) {
       [p.id],
     );
     const defaults = mergeSettings(p.settings).defaultLimits;
+    const base = await accessUrlFor(p, '');
     res.json({
       defaults,
       clients: orgs.map((o) => ({
         id: o.id,
         name: o.name,
+        slug: o.slug,
+        accessUrl: o.slug ? `${base}${o.slug}` : null,
         status: o.status,
         createdAt: o.created_at,
         members: o.members,
@@ -257,10 +261,12 @@ export function registerPartnerRoutes(app) {
       return res.status(409).json({ error: 'Este e-mail já tem conta neste parceiro.', fields: { ownerEmail: 'Já tem conta.' } });
     }
     const limits = cleanLimits(req.body?.limits);
-    const org = await db.get('INSERT INTO organizations (partner_id, name, limits) VALUES ($1, $2, $3) RETURNING id', [p.id, name, json(limits)]);
+    const slug = await uniqueSlug(db, p.id, name);
+    const org = await db.get('INSERT INTO organizations (partner_id, name, limits, slug) VALUES ($1, $2, $3, $4) RETURNING id', [p.id, name, json(limits), slug]);
     const raw = await createToken({ kind: 'convite', partnerId: p.id, orgId: org.id, email: ownerEmail, role: 'owner', createdBy: req.user.id, ttlMs: 7 * DAY });
-    await sendTemplate(p.id, ownerEmail, 'invite', [raw, { orgName: name, inviterName: p.name, roleLabel: ROLES.owner }]);
-    res.status(201).json({ id: org.id });
+    const accessUrl = await accessUrlFor(p, slug);
+    await sendTemplate(p.id, ownerEmail, 'invite', [raw, { orgName: name, inviterName: p.name, roleLabel: ROLES.owner, accessUrl }]);
+    res.status(201).json({ id: org.id, slug, accessUrl });
   }));
 
   app.put('/api/partner/:pid/clients/:orgId', wrap(async (req, res) => {

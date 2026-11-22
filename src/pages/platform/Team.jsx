@@ -67,6 +67,7 @@ export default function Team({ user, notify }) {
   return (
     <>
       <PageHead title="Equipe" lede={`Quem participa de ${user.orgName} e o que cada pessoa pode fazer.`} />
+      {user.orgSlug && <AccessAddress slug={user.orgSlug} notify={notify} />}
 
       {manage && (
         <section className="panel" aria-labelledby="invite-title">
@@ -189,5 +190,35 @@ export default function Team({ user, notify }) {
         </section>
       )}
     </>
+  );
+}
+
+// Endereço por onde a equipe da empresa entra (também vai no e-mail de convite).
+function AccessAddress({ slug, notify }) {
+  const url = `${window.location.origin}/acesso/${slug}`;
+  return (
+    <section className="panel access-address">
+      <div>
+        <h2>Endereço de acesso da empresa</h2>
+        <p className="panel-sub">É por aqui que as pessoas da equipe entram. Ele vai junto no e-mail de convite.</p>
+      </div>
+      <div className="copy-row">
+        <input className="input mono" value={url} readOnly onFocus={(e) => e.target.select()} aria-label="Endereço de acesso" />
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(url);
+              notify('Endereço copiado.');
+            } catch {
+              notify('Selecione o endereço e copie com Ctrl+C ou Cmd+C.', 'error');
+            }
+          }}
+        >
+          Copiar
+        </button>
+      </div>
+    </section>
   );
 }

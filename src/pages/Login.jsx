@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { api } from '../api.js';
 import AuthLayout from '../components/AuthLayout.jsx';
 import PasswordField from '../components/PasswordField.jsx';
 import { useAuth, homeFor } from '../auth.jsx';
@@ -14,13 +15,24 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Endereço de acesso da empresa (/acesso/<slug>): a tela mostra o nome dela.
+  const { slug } = useParams();
+  const [org, setOrg] = useState(null);
+  const [orgError, setOrgError] = useState('');
+
+  useEffect(() => {
+    if (!slug) return;
+    api(`/access/${slug}`)
+      .then((r) => setOrg(r.org))
+      .catch((err) => setOrgError(err.message));
+  }, [slug]);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setSubmitting(true);
     try {
-      const user = await login(email, password);
+      const user = await login(email, password, slug);
       const from = location.state?.from;
       const home = homeFor(user);
       navigate(from && from.startsWith(home) ? from : home, { replace: true });
@@ -39,13 +51,14 @@ export default function Login() {
         </>
       }
     >
-      <h1>Entrar no {brand.name}</h1>
-      {brand.allowSignup ? (
-        <p className="auth-sub">
-          Ainda não tem conta? <Link to="/criar-conta">Criar conta da empresa</Link>
-        </p>
-      ) : (
-        <p className="auth-sub">O acesso é feito por convite da sua empresa.</p>
+      <h1>{org ? `Entrar na ${org.name}` : `Entrar no ${brand.name}`}</h1>
+      <p className="auth-sub">
+        {org ? `Área dos agentes de IA da ${org.name}, no ${brand.name}.` : 'Use o endereço de acesso da sua empresa, que você recebeu por e-mail.'}
+      </p>
+      {orgError && (
+        <div className="form-alert" role="alert">
+          {orgError}
+        </div>
       )}
 
       <form onSubmit={handleSubmit} noValidate className="auth-form">

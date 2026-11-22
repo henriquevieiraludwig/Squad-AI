@@ -68,6 +68,9 @@ export async function startPlatform() {
       END LOOP; END $$`);
   }
   const platform = await ensureDefaultPartner();
+  // Nos testes, o cadastro aberto continua ligado para criar empresas rapidamente.
+  await db.run(`UPDATE partners SET settings = jsonb_set(settings, '{allowSignup}', 'true'::jsonb) WHERE id = $1`, [platform.id]);
+  platform.settings = { ...(platform.settings || {}), allowSignup: true };
   registerJobHandlers();
   const app = createApp();
   const server = await new Promise((resolve) => {

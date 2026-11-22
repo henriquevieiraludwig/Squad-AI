@@ -300,4 +300,18 @@ export const MIGRATIONS = [
   CREATE INDEX IF NOT EXISTS idx_schedules_org ON agent_schedules (org_id);
   ALTER TABLE agent_schedules ENABLE ROW LEVEL SECURITY;
   `,
+  `
+  -- Endereço de acesso de cada empresa (/acesso/<slug>), único dentro do parceiro.
+  ALTER TABLE organizations ADD COLUMN IF NOT EXISTS slug TEXT;
+  UPDATE organizations SET slug = trim(both '-' from regexp_replace(lower(translate(name,
+      'áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ', 'aaaaaeeeeiiiiooooouuuucnAAAAAEEEEIIIIOOOOOUUUUCN')), '[^a-z0-9]+', '-', 'g'))
+   WHERE slug IS NULL;
+  UPDATE organizations o SET slug = o.slug || '-' || o.id
+   WHERE EXISTS (SELECT 1 FROM organizations x WHERE x.partner_id = o.partner_id AND x.slug = o.slug AND x.id < o.id) OR o.slug = '';
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_orgs_slug ON organizations (partner_id, slug);
+  `,
+  `
+  -- A plataforma (Zadok/Squad AI) deixa de ter cadastro aberto no site.
+  UPDATE partners SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{allowSignup}', 'false'::jsonb) WHERE is_default;
+  `,
 ];

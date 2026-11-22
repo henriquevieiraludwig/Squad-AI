@@ -9,7 +9,7 @@ const FALLBACK = {
   logo: null,
   colors: { action: '#B8F479', dark: '#10271E', accent: '#346A42' },
   showPoweredBy: true,
-  allowSignup: true,
+  allowSignup: false,
 };
 
 // Texto escuro ou claro sobre a cor de ação, conforme o contraste.
