@@ -585,7 +585,7 @@ async function companyRoutes(s, method, path, body) {
     return { doc: { ...docView(d), preview: d.content.slice(0, 6000), truncated: d.content.length > 6000 } };
   }
 
-  if (path === '/dashboards' || (m = path.match(/^\/dashboards\/(\d+)(\/share)?$/))) {
+  if (path === '/dashboards' || (m = path.match(/^\/dashboards\/(\d+)(\/share|\/export\/\w+)?$/))) {
     const me = u();
     s.dashboards ??= [];
     const mine = s.dashboards.filter((d) => d.orgId === me.orgId);
@@ -594,6 +594,9 @@ async function companyRoutes(s, method, path, body) {
     if (path === '/dashboards') return { dashboards: mine.map((d) => ({ ...view(d), kpis: d.spec.kpis.slice(0, 3), charts: d.spec.charts.length })) };
     const d = mine.find((x) => x.id === Number(m[1]));
     if (!d) throw new ApiError('Dashboard não encontrado.', 404);
+    if (m[2]?.startsWith('/export')) {
+      throw new ApiError('Na demonstração não há conta Google conectada. Na plataforma, conecte o Google em Integrações e o painel vai para o seu Drive.', 400);
+    }
     if (m[2] === '/share') {
       d.shareToken = body.enabled === false ? null : d.shareToken || `demo${rand()}${rand()}`;
       save();

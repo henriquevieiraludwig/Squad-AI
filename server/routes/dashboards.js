@@ -3,6 +3,8 @@ import { db } from '../db.js';
 import { requireOrg } from '../auth.js';
 import { h } from './org.js';
 import { newShareToken } from '../agent/dashboards.js';
+import { exportToSheets, exportToSlides } from '../agent/googleExport.js';
+import { credentialsFor } from '../connectors/index.js';
 
 const view = (r) => ({
   id: r.id,
@@ -37,6 +39,17 @@ export function registerDashboardRoutes(app) {
     const token = req.body?.enabled === false ? null : r.share_token || newShareToken();
     await db.run('UPDATE dashboards SET share_token = $2, updated_at = now() WHERE id = $1', [r.id, token]);
     res.json({ shareToken: token });
+  }));
+
+  // Exporta para Google Planilhas ou Apresentações, na conta Google conectada da empresa.
+  app.post('/api/dashboards/:id/export/:kind', requireOrg(), h(async (req, res) => {
+    const kind = req.params.kind;
+    if (!['sheets', 'slides'].includes(kind)) return res.status(404).json({ error: 'Formato desconhecido.' });
+    const r = await db.get('SELECT spec FROM dashboards WHERE id = $1 AND org_id = $2', [Number(req.params.id), req.user.orgId]);
+    if (!r) return res.status(404).json({ error: 'Dashboard não encontrado.' });
+    const creds = await credentialsFor(req.user.orgId, 'google');
+    const out = kind === 'sheets' ? await exportToSheets(creds.access_token, r.spec) : await exportToSlides(creds.access_token, r.spec);
+    res.json({ url: out.url });
   }));
 
   app.delete('/api/dashboards/:id', requireOrg('configurar'), h(async (req, res) => {

@@ -16,12 +16,12 @@ export class DashboardError extends Error {}
 export function normalizeSpec(input = {}) {
   const title = str(input.titulo, 120);
   if (!title) throw new DashboardError('Dê um título ao dashboard.');
-  const kpis = (Array.isArray(input.indicadores) ? input.indicadores : []).slice(0, 8).map((k) => ({
+  const kpis = (Array.isArray(input.indicadores) ? input.indicadores : []).slice(0, 6).map((k) => ({
     label: str(k.rotulo, 60),
-    value: str(k.valor, 40),
-    detail: str(k.detalhe, 120),
+    value: str(k.valor, 24),
+    detail: str(k.detalhe, 70),
     trend: ['alta', 'queda', 'estavel'].includes(k.tendencia) ? k.tendencia : null,
-    trendText: str(k.texto_tendencia, 40),
+    trendText: str(k.texto_tendencia, 28),
   })).filter((k) => k.label && k.value);
 
   const charts = (Array.isArray(input.graficos) ? input.graficos : []).slice(0, 10).map((c) => {

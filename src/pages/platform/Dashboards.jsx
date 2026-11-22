@@ -4,7 +4,7 @@ import { api } from '../../api.js';
 import { can } from '../../auth.jsx';
 import { IconChart, IconCopy, IconTrash } from '../../components/Icons.jsx';
 import AgentAvatar from '../../components/AgentAvatar.jsx';
-import DashboardView from '../../components/dashboard/DashboardView.jsx';
+import DashboardView, { presentDashboard } from '../../components/dashboard/DashboardView.jsx';
 import { PageHead, EmptyState, ErrorState, LoadingRows, formatDate } from './common.jsx';
 
 export default function Dashboards(props) {
@@ -80,10 +80,28 @@ function DashboardDetail({ id, user, notify }) {
       .catch((err) => setError(err.message));
   }, [id]);
   useEffect(load, [load]);
+  const [exporting, setExporting] = useState('');
 
   if (error) return <ErrorState message={error} />;
   if (!d) return <LoadingRows rows={4} />;
   const shareUrl = d.shareToken ? `${window.location.origin}/d/${d.shareToken}` : null;
+
+  async function exportTo(kind) {
+    // Abre a aba já no clique (o navegador bloqueia janelas abertas depois de uma espera).
+    const tab = window.open('', '_blank');
+    setExporting(kind);
+    try {
+      const r = await api(`/dashboards/${id}/export/${kind}`, { method: 'POST' });
+      if (tab) tab.location.href = r.url;
+      else window.location.href = r.url;
+      notify(kind === 'sheets' ? 'Planilha criada no seu Google Drive.' : 'Apresentação criada no seu Google Drive.');
+    } catch (err) {
+      tab?.close();
+      notify(err.message, 'error');
+    } finally {
+      setExporting('');
+    }
+  }
 
   async function share(enabled) {
     try {
@@ -101,6 +119,15 @@ function DashboardDetail({ id, user, notify }) {
   return (
     <>
       <PageHead back={{ to: '/app/dashboards', label: 'Dashboards' }} title={d.title} lede={d.agentName ? `Criado por ${d.agentName} em ${formatDate(d.createdAt, true)}.` : undefined}>
+        <button className="btn btn-secondary" onClick={presentDashboard}>
+          Apresentar
+        </button>
+        <button className="btn btn-secondary" onClick={() => exportTo('sheets')} disabled={Boolean(exporting)}>
+          {exporting === 'sheets' ? 'Criando planilha...' : 'Google Planilhas'}
+        </button>
+        <button className="btn btn-secondary" onClick={() => exportTo('slides')} disabled={Boolean(exporting)}>
+          {exporting === 'slides' ? 'Criando slides...' : 'Google Slides'}
+        </button>
         <button className="btn btn-secondary" onClick={() => window.print()}>
           Baixar PDF
         </button>

@@ -2719,3 +2719,12 @@
   align-items: center;
   gap: 6px;
 }
+
+.public-dash-present {
+  border: 0;
+  background: none;
+  color: #b8f479;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}

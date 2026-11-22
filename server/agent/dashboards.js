@@ -21,15 +21,15 @@ export const DASHBOARD_TOOL = {
       fonte: { type: 'string', description: 'De onde vieram os dados, ex.: "Planilha de vendas 2026".' },
       indicadores: {
         type: 'array',
-        description: 'Indicadores em destaque no topo (3 a 6).',
+        description: 'Indicadores em destaque no topo: 4 é o ideal (no máximo 6). Rótulos curtos (até 22 caracteres).',
         items: {
           type: 'object',
           properties: {
             rotulo: { type: 'string', description: 'Nome do indicador, ex.: "Faturamento total".' },
-            valor: { type: 'string', description: 'Valor já formatado, ex.: "R$ 20,09 mi".' },
-            detalhe: { type: 'string', description: 'Contexto curto, ex.: "Soma dos 12 meses".' },
+            valor: { type: 'string', description: 'Valor curto, já formatado e arredondado (até 12 caracteres): "R$ 20,09 mi", "R$ 15,2 mil", "1.321", "6,9%". Nunca centavos em valores grandes.' },
+            detalhe: { type: 'string', description: 'Contexto curto (até 40 caracteres), ex.: "Soma dos 12 meses".' },
             tendencia: { type: 'string', enum: ['alta', 'queda', 'estavel'] },
-            texto_tendencia: { type: 'string', description: 'Ex.: "+83% no período".' },
+            texto_tendencia: { type: 'string', description: 'Até 20 caracteres, ex.: "+83% no ano", "-30% vs nov/25".' },
           },
           required: ['rotulo', 'valor'],
         },

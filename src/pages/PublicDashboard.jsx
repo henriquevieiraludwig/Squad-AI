@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api.js';
-import DashboardView from '../components/dashboard/DashboardView.jsx';
+import DashboardView, { presentDashboard } from '../components/dashboard/DashboardView.jsx';
 import { BrandMark } from '../components/Logo.jsx';
 import { useBrand } from '../brand.jsx';
 
@@ -27,7 +27,12 @@ export default function PublicDashboard() {
           spec={d.spec}
           footer={
             <footer className="public-dash-foot">
-              <span>{d.orgName}</span>
+              <span>
+                {d.orgName} ·{' '}
+                <button type="button" className="public-dash-present" onClick={presentDashboard}>
+                  Apresentar em tela inteira
+                </button>
+              </span>
               <span className="public-dash-brand">
                 Feito com <BrandMark size={18} /> {brand.name}
               </span>

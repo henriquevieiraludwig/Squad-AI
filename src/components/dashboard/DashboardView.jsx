@@ -356,6 +356,14 @@ function KpiIcon({ i }) {
   );
 }
 
+// Abre o painel em tela inteira (Esc sai). Safari usa o nome com prefixo.
+export function presentDashboard() {
+  const el = document.querySelector('.dash');
+  if (!el) return;
+  const go = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (go) go.call(el);
+}
+
 export default function DashboardView({ spec, footer }) {
   const [showTables, setShowTables] = useState({});
   useEffect(() => setShowTables({}), [spec]);
