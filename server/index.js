@@ -10,6 +10,7 @@ import { registerAuthRoutes } from './routes/auth.js';
 import { registerOrgRoutes } from './routes/org.js';
 import { registerIntegrationRoutes } from './routes/integrations.js';
 import { registerScheduleRoutes } from './routes/schedules.js';
+import { registerDashboardRoutes } from './routes/dashboards.js';
 import { registerPartnerRoutes } from './routes/partner.js';
 import { registerJobHandlers } from './job-handlers.js';
 import { startWorker } from './jobs.js';
@@ -72,6 +73,7 @@ export function createApp() {
   registerOrgRoutes(app);
   registerIntegrationRoutes(app);
   registerScheduleRoutes(app);
+  registerDashboardRoutes(app);
 
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
 

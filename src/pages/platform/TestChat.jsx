@@ -196,6 +196,11 @@ export default function TestChat({ agents, openCreate, refreshSummary, notify })
                         Revisar
                       </Link>
                     )}
+                    {a.link && (
+                      <Link to={a.link} className="link">
+                        Abrir
+                      </Link>
+                    )}
                   </div>
                 );
               })}

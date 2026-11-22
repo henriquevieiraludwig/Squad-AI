@@ -7,6 +7,8 @@ const KEY = 'squad-ai-demo-v2';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 import { AREAS } from '../shared/areas.js';
 import { validateSchedule, nextRunAt, describeSchedule } from '../shared/schedule.js';
+import { normalizeSpec } from '../shared/dashboardSpec.js';
+import { SAMPLE_DASHBOARD_INPUT } from '../shared/sampleDashboard.js';
 
 let state = null;
 
@@ -468,6 +470,24 @@ async function integrationRoutes(s, method, path, body) {
         s.conversations.push({ id: conversationId, orgId: u.orgId, agentId: agent.id, userId: u.id });
       }
       await new Promise((r) => setTimeout(r, 700));
+      // Pedido de dashboard: na demonstração, o agente monta o exemplo com os dados da planilha de vendas.
+      if (!files.length && /dashboard|painel|gr[aá]fico/i.test(text)) {
+        s.dashboards ??= [];
+        const dash = { id: nextId(), orgId: u.orgId, agentId: agent.id, spec: normalizeSpec(SAMPLE_DASHBOARD_INPUT), createdAt: now() };
+        s.dashboards.push(dash);
+        save();
+        const conv0 = s.conversations.find((c) => c.id === conversationId);
+        if (conv0) {
+          conv0.messages ??= [];
+          conv0.messages.push({ id: nextId(), author: 'contato', text, at: now() }, { id: nextId(), author: 'agente', text: 'Pronto! Montei o dashboard **Performance comercial e financeira** com faturamento, vendas, ticket médio e conclusões 📊', at: now() });
+          conv0.lastMessageAt = now();
+        }
+        return {
+          conversationId,
+          reply: 'Pronto! Montei o dashboard **Performance comercial e financeira** com faturamento, vendas, ticket médio e conclusões 📊\n\nNa demonstração uso dados de exemplo; na plataforma, eu leio a sua planilha.',
+          actions: [{ id: `dash-${dash.id}`, label: `Dashboard: ${dash.spec.title}`, status: 'executada', link: `/app/dashboards/${dash.id}` }],
+        };
+      }
       const out = files.length
         ? { reply: `Recebi ${files.length === 1 ? 'o arquivo' : 'os arquivos'} **${files.join(', ')}** 📎\n\nNa demonstração eu não leio o conteúdo; na plataforma de verdade, eu leio imagens, PDFs, Word, TXT e CSV e respondo sobre eles.`, actions: [] }
         : simulateChat(s, u, agent, text);
@@ -563,6 +583,28 @@ async function companyRoutes(s, method, path, body) {
       return { ok: true };
     }
     return { doc: { ...docView(d), preview: d.content.slice(0, 6000), truncated: d.content.length > 6000 } };
+  }
+
+  if (path === '/dashboards' || (m = path.match(/^\/dashboards\/(\d+)(\/share)?$/))) {
+    const me = u();
+    s.dashboards ??= [];
+    const mine = s.dashboards.filter((d) => d.orgId === me.orgId);
+    const agentOf = (d) => s.agents.find((a) => a.id === d.agentId);
+    const view = (d) => ({ id: d.id, title: d.spec.title, agentId: d.agentId, agentName: agentOf(d)?.name, agentAvatar: agentOf(d)?.avatar, shared: Boolean(d.shareToken), shareToken: d.shareToken || null, createdAt: d.createdAt });
+    if (path === '/dashboards') return { dashboards: mine.map((d) => ({ ...view(d), kpis: d.spec.kpis.slice(0, 3), charts: d.spec.charts.length })) };
+    const d = mine.find((x) => x.id === Number(m[1]));
+    if (!d) throw new ApiError('Dashboard não encontrado.', 404);
+    if (m[2] === '/share') {
+      d.shareToken = body.enabled === false ? null : d.shareToken || `demo${rand()}${rand()}`;
+      save();
+      return { shareToken: d.shareToken };
+    }
+    if (method === 'DELETE') {
+      s.dashboards = s.dashboards.filter((x) => x !== d);
+      save();
+      return { ok: true };
+    }
+    return { dashboard: { ...view(d), spec: d.spec } };
   }
 
   if (path === '/schedules' || (m = path.match(/^\/schedules\/(\d+)(\/run)?$/))) {

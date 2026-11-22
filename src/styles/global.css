@@ -574,6 +574,12 @@ select.input {
   }
 }
 
+.demo-banner a {
+  color: var(--lime);
+  font-weight: 600;
+  margin-left: 6px;
+}
+
 .demo-banner {
   padding: 8px max(16px, env(safe-area-inset-left, 0px));
   background: var(--forest);

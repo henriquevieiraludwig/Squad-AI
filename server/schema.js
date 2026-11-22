@@ -327,4 +327,20 @@ export const MIGRATIONS = [
   );
   ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
   `,
+  `
+  -- Dashboards criados pelos agentes (painéis com indicadores, gráficos, tabelas e conclusões).
+  CREATE TABLE IF NOT EXISTS dashboards (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    agent_id INTEGER REFERENCES agents(id) ON DELETE SET NULL,
+    conversation_id INTEGER REFERENCES conversations(id) ON DELETE SET NULL,
+    title TEXT NOT NULL,
+    spec JSONB NOT NULL,
+    share_token TEXT UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS idx_dashboards_org ON dashboards (org_id, created_at DESC);
+  ALTER TABLE dashboards ENABLE ROW LEVEL SECURITY;
+  `,
 ];

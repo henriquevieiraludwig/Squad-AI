@@ -1,8 +1,9 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { GuestOnly, RequireAuth, RequirePartner } from './auth.jsx';
 import Landing from './pages/Landing.jsx';
 import ZadokHome from './pages/ZadokHome.jsx';
 import ZadokErp from './pages/ZadokErp.jsx';
+import PublicDashboard from './pages/PublicDashboard.jsx';
 import { useBrand } from './brand.jsx';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
@@ -19,7 +20,11 @@ export default function App() {
   const brand = useBrand();
   return (
     <>
-      {DEMO && <p className="demo-banner">Versão de demonstração. Os dados ficam salvos só neste navegador.</p>}
+      {DEMO && (
+        <p className="demo-banner">
+          Versão de demonstração. Os dados ficam salvos só neste navegador. <Link to="/criar-conta">Experimentar a plataforma</Link>
+        </p>
+      )}
       {newVersion && (
         <div className="update-banner" role="status">
           <span>Há uma versão nova da plataforma.</span>
@@ -35,6 +40,7 @@ export default function App() {
         <Route path="/produtos/zadok-erp" element={brand.isPlatform ? <ZadokErp /> : <Navigate to="/" replace />} />
         <Route path="/entrar" element={guest(<Login />)} />
         <Route path="/acesso/:slug" element={guest(<Login />)} />
+        <Route path="/d/:token" element={<PublicDashboard />} />
         <Route path="/criar-conta" element={guest(<Signup />)} />
         <Route path="/esqueci-senha" element={guest(<ForgotPassword />)} />
         <Route path="/redefinir-senha" element={<ResetPassword />} />

@@ -125,6 +125,11 @@ export const IconX = (p) => (
     <path d="M6 6l12 12M18 6 6 18" />
   </Svg>
 );
+export const IconChart = (p) => (
+  <Svg {...p}>
+    <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+  </Svg>
+);
 export const IconMenu = (p) => (
   <Svg {...p}>
     <path d="M4 7h16M4 12h16M4 17h16" />

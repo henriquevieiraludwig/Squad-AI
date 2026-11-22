@@ -1,0 +1,423 @@
+/* Dashboard dos agentes: tema escuro da marca (Floresta + Limão). */
+.dash {
+  --dash-bg: #10271e;
+  --dash-card: #183a2b;
+  --dash-line: rgba(238, 244, 238, 0.1);
+  --dash-ink: #eef4ee;
+  --dash-soft: #a9bdb0;
+  --dash-faint: #7e9587;
+  --dash-lime: #b8f479;
+  display: grid;
+  gap: 16px;
+  padding: clamp(16px, 2.4vw, 28px);
+  background: var(--dash-bg);
+  color: var(--dash-ink);
+  border-radius: 16px;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.dash-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--dash-line);
+}
+
+.dash-eyebrow,
+.dash-source {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dash-lime);
+}
+
+.dash-source {
+  color: var(--dash-faint);
+}
+
+.dash-head h1 {
+  margin: 6px 0 4px;
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.dash-head p {
+  margin: 0;
+  color: var(--dash-soft);
+  max-width: 70ch;
+}
+
+/* Indicadores */
+.dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.dash-kpi {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 18px;
+  background: var(--dash-card);
+  border-radius: 14px;
+}
+
+.dash-kpi > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dash-kpi-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--dash-lime);
+  color: var(--dash-bg);
+}
+
+.dash-kpi-label {
+  color: var(--dash-soft);
+  font-size: 0.9rem;
+}
+
+.dash-kpi-value {
+  font-size: clamp(1.3rem, 2.1vw, 1.75rem);
+  white-space: nowrap;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.dash-kpi-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 0.8rem;
+  color: var(--dash-faint);
+}
+
+.dash-trend {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--dash-soft);
+}
+
+.dash-trend.is-alta {
+  color: var(--dash-lime);
+}
+
+.dash-trend.is-queda {
+  color: #ff9b8c;
+}
+
+/* Gráficos */
+.dash-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dash-card {
+  margin: 0;
+  min-width: 0;
+  padding: 18px;
+  background: var(--dash-card);
+  border-radius: 14px;
+}
+
+.dash-card.is-full {
+  grid-column: 1 / -1;
+}
+
+.dash-card figcaption {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--dash-line);
+}
+
+.dash-card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.dash-card figcaption p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--dash-soft);
+}
+
+.dash-toggle {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--dash-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dash-soft);
+  font: 500 0.78rem Inter, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.dash-toggle:hover {
+  color: var(--dash-lime);
+  border-color: var(--dash-lime);
+}
+
+.dash-chart-body {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.dash-chart-body svg {
+  display: block;
+  overflow: visible;
+}
+
+.dash-grid {
+  stroke: var(--dash-line);
+  stroke-width: 1;
+}
+
+.dash-axis {
+  stroke: rgba(238, 244, 238, 0.28);
+  stroke-width: 1;
+}
+
+.dash-cross {
+  stroke: rgba(238, 244, 238, 0.35);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.dash-label {
+  fill: var(--dash-soft);
+  font-size: 12px;
+}
+
+.dash-value {
+  fill: var(--dash-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dash-legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 10px 0 0;
+  padding: 0;
+  font-size: 0.82rem;
+  color: var(--dash-soft);
+}
+
+.dash-legend li,
+.dash-donut-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dash-legend i,
+.dash-donut-legend i,
+.dash-tip i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+/* Tooltip */
+.dash-tip {
+  position: absolute;
+  z-index: 5;
+  transform: translate(12px, -110%);
+  display: grid;
+  gap: 4px;
+  min-width: 140px;
+  padding: 8px 10px;
+  background: #0b1c15;
+  border: 1px solid rgba(238, 244, 238, 0.16);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.6);
+  font-size: 0.8rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.dash-tip strong {
+  font-weight: 600;
+}
+
+.dash-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dash-soft);
+}
+
+.dash-tip-row b {
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--dash-ink);
+  font-weight: 600;
+}
+
+/* Rosca */
+.dash-donut {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.dash-donut-total {
+  fill: var(--dash-ink);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.dash-donut-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  flex: 1;
+  min-width: 160px;
+  font-size: 0.88rem;
+}
+
+.dash-donut-legend span {
+  color: var(--dash-soft);
+}
+
+.dash-donut-legend b {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+/* Conclusões */
+.dash-insights ul {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.dash-insights li {
+  position: relative;
+  padding-left: 26px;
+  line-height: 1.55;
+  color: var(--dash-ink);
+}
+
+.dash-insights li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.35em;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 3px solid var(--dash-lime);
+  box-sizing: border-box;
+}
+
+/* Tabelas */
+.dash-table-wrap {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.dash-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dash-faint);
+  border-bottom: 1px solid var(--dash-line);
+  white-space: nowrap;
+}
+
+.dash-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--dash-line);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.dash-table tbody tr:hover td {
+  background: rgba(238, 244, 238, 0.03);
+}
+
+@media (max-width: 860px) {
+  .dash-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* PDF: imprime o painel inteiro, sem a interface em volta. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .dash,
+  .dash * {
+    visibility: visible;
+  }
+
+  .dash {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .dash-toggle {
+    display: none;
+  }
+
+  .dash-card,
+  .dash-kpi {
+    break-inside: avoid;
+  }
+}

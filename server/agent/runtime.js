@@ -10,6 +10,7 @@ import { assertCanRunAgent, recordUsage } from '../usage.js';
 import { enqueue } from '../jobs.js';
 import { MEMORY_TOOLS, runMemoryTool, memoriesFor, memoryPromptBlock, contactKeyFor } from './memory.js';
 import { SCHEDULE_TOOLS, SCHEDULE_TOOL_NAMES, runScheduleTool } from './scheduleTools.js';
+import { DASHBOARD_TOOL, runDashboardTool } from './dashboards.js';
 
 const MODEL = process.env.AGENT_MODEL || 'claude-opus-5-5';
 const MAX_TOOL_ROUNDS = 8;
@@ -308,6 +309,7 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
   // A memória vem primeiro e é sempre igual: mantém o começo da lista estável para o cache.
   const toolDefs = [
     ...MEMORY_TOOLS,
+    DASHBOARD_TOOL,
     ...(others.length ? [handoffTool(others)] : []),
     // Agendar tarefas: só para alguém da equipe conversando pela plataforma.
     ...(teamUserId ? SCHEDULE_TOOLS : []),
@@ -397,6 +399,12 @@ async function runAgentUnlocked({ orgId, agentId, conversationId, text, content 
     for (const block of toolUses) {
       if (block.name === 'lembrar' || block.name === 'esquecer') {
         results.push(await runMemoryTool(ctx, block));
+        continue;
+      }
+      if (block.name === 'criar_dashboard') {
+        const d = await runDashboardTool(ctx, block);
+        results.push(d.result);
+        if (d.run) runs.push(d.run);
         continue;
       }
       if (SCHEDULE_TOOL_NAMES.has(block.name)) {
