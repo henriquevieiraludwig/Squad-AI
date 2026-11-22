@@ -33,6 +33,13 @@ export const token = {
     if (!/^\d{5,}$/.test(id)) throw new ConnectorError('O ID do número de telefone tem só dígitos. Copie do painel da Meta.', { status: 400 });
     if (!tok) throw new ConnectorError('Informe o token de acesso.', { status: 400 });
     const url = apiBase(base);
+    // Token de provedor intermediário (ex.: Datafy, sk_live_...) não funciona direto na Meta.
+    if (url === GRAPH && !/^EA/.test(tok)) {
+      throw new ConnectorError(
+        'Esse token não é da Meta (os da Meta começam com EAA). Se ele é de um provedor como a Datafy, preencha o campo Endereço da API (Datafy: https://cloud.datafyapi.com.br/v1).',
+        { status: 400 },
+      );
+    }
     const info = await request(`${url}/${id}?fields=display_phone_number,verified_name`, { token: tok, provider: P });
     return {
       creds: { phoneNumberId: id, accessToken: tok, appSecret: String(appSecret || '').trim() || null, apiBase: url === GRAPH ? null : url },
