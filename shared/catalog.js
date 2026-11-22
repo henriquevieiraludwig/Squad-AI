@@ -33,6 +33,12 @@ export const PROVIDERS = [
       { key: 'phoneNumberId', label: 'ID do número de telefone', hint: 'No painel da Meta: WhatsApp > Configuração da API.' },
       { key: 'accessToken', label: 'Token de acesso permanente', secret: true, hint: 'Gere um token de usuário do sistema com a permissão whatsapp_business_messaging.' },
       { key: 'appSecret', label: 'Chave secreta do app', secret: true, optional: true, hint: 'Opcional. Usada para confirmar que as mensagens recebidas vieram da Meta.' },
+      {
+        key: 'apiBase',
+        label: 'Endereço da API',
+        optional: true,
+        hint: 'Deixe em branco se o token é da Meta (começa com EAA). Se você usa um provedor com token próprio (ex.: sk_live_...), cole aqui o endereço da API que está no "Como usar" dele.',
+      },
     ],
     steps: [
       'Crie um app do tipo Empresa em developers.facebook.com e adicione o produto WhatsApp.',

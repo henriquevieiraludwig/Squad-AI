@@ -7,15 +7,32 @@ const VERSION = process.env.META_GRAPH_VERSION || 'v23.0';
 const GRAPH = `https://graph.facebook.com/${VERSION}`;
 const P = 'WhatsApp';
 
+// Endereço da API: o da Meta por padrão, ou o de um provedor que repassa para a Meta
+// (serviços que dão um token próprio, como sk_live_..., no lugar do token EAAB... da Meta).
+export function apiBase(value) {
+  const v = String(value || '').trim().replace(/\/+$/, '');
+  if (!v) return GRAPH;
+  let u;
+  try {
+    u = new URL(v);
+  } catch {
+    throw new ConnectorError('O endereço da API precisa ser um link completo, começando com https://', { status: 400 });
+  }
+  if (u.protocol !== 'https:') throw new ConnectorError('O endereço da API precisa começar com https://', { status: 400 });
+  return v;
+}
+const baseOf = (creds) => creds.apiBase || GRAPH;
+
 export const token = {
-  async connect({ phoneNumberId, accessToken, appSecret }) {
+  async connect({ phoneNumberId, accessToken, appSecret, apiBase: base }) {
     const id = String(phoneNumberId || '').trim();
     const tok = String(accessToken || '').trim();
     if (!/^\d{5,}$/.test(id)) throw new ConnectorError('O ID do número de telefone tem só dígitos. Copie do painel da Meta.', { status: 400 });
     if (!tok) throw new ConnectorError('Informe o token de acesso.', { status: 400 });
-    const info = await request(`${GRAPH}/${id}?fields=display_phone_number,verified_name`, { token: tok, provider: P });
+    const url = apiBase(base);
+    const info = await request(`${url}/${id}?fields=display_phone_number,verified_name`, { token: tok, provider: P });
     return {
-      creds: { phoneNumberId: id, accessToken: tok, appSecret: String(appSecret || '').trim() || null },
+      creds: { phoneNumberId: id, accessToken: tok, appSecret: String(appSecret || '').trim() || null, apiBase: url === GRAPH ? null : url },
       accountLabel: `${info.verified_name} (${info.display_phone_number})`,
     };
   },
@@ -24,7 +41,7 @@ export const token = {
 async function send(creds, to, text) {
   const digits = String(to).replace(/\D/g, '');
   if (digits.length < 10) throw new ConnectorError('Número inválido. Use DDI + DDD + número, só dígitos.');
-  const data = await request(`${GRAPH}/${creds.phoneNumberId}/messages`, {
+  const data = await request(`${baseOf(creds)}/${creds.phoneNumberId}/messages`, {
     method: 'POST',
     token: creds.accessToken,
     provider: P,
@@ -47,7 +64,7 @@ export const actions = {
       .split('|')
       .map((v) => v.trim())
       .filter(Boolean);
-    const data = await request(`${GRAPH}/${creds.phoneNumberId}/messages`, {
+    const data = await request(`${baseOf(creds)}/${creds.phoneNumberId}/messages`, {
       method: 'POST',
       token: creds.accessToken,
       provider: P,
