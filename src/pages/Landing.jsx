@@ -49,6 +49,14 @@ import logoGoogleChat from '../assets/logos/google-chat.webp';
 import logoGoogleDrive from '../assets/logos/google-drive.webp';
 import logoWhatsapp from '../assets/logos/whatsapp.webp';
 import logoTelegram from '../assets/logos/telegram.webp';
+import logoGmail from '../assets/logos/gmail.webp';
+import logoGoogleDocs from '../assets/logos/google-docs.webp';
+import logoGoogleForms from '../assets/logos/google-forms.webp';
+import logoGoogleMeet from '../assets/logos/google-meet.webp';
+import logoGoogleSheets from '../assets/logos/google-sheets.webp';
+import logoGoogleSlides from '../assets/logos/google-slides.svg';
+import logoGoogleCalendar from '../assets/logos/google-calendar.svg';
+import logoSlack from '../assets/logos/slack.svg';
 
 // Planos. Os preços ficam como "R$ X" até serem definidos: basta trocar o campo price.
 const plans = [
@@ -81,6 +89,14 @@ const platforms = [
   { name: 'OneDrive', src: logoOnedrive },
   { name: 'Google Chat', src: logoGoogleChat },
   { name: 'Google Drive', src: logoGoogleDrive },
+  { name: 'Gmail', src: logoGmail },
+  { name: 'Google Agenda', src: logoGoogleCalendar },
+  { name: 'Google Meet', src: logoGoogleMeet },
+  { name: 'Google Planilhas', src: logoGoogleSheets },
+  { name: 'Google Docs', src: logoGoogleDocs },
+  { name: 'Google Apresentações', src: logoGoogleSlides },
+  { name: 'Google Formulários', src: logoGoogleForms },
+  { name: 'Slack', src: logoSlack },
   { name: 'WhatsApp', src: logoWhatsapp },
   { name: 'Telegram', src: logoTelegram },
 ];

@@ -12,6 +12,14 @@ import logoGoogleDrive from '../../assets/logos/google-drive.webp';
 import logoGoogleChat from '../../assets/logos/google-chat.webp';
 import logoWhatsapp from '../../assets/logos/whatsapp.webp';
 import logoTelegram from '../../assets/logos/telegram.webp';
+import logoGmail from '../../assets/logos/gmail.webp';
+import logoGoogleDocs from '../../assets/logos/google-docs.webp';
+import logoGoogleForms from '../../assets/logos/google-forms.webp';
+import logoGoogleMeet from '../../assets/logos/google-meet.webp';
+import logoGoogleSheets from '../../assets/logos/google-sheets.webp';
+import logoGoogleSlides from '../../assets/logos/google-slides.svg';
+import logoGoogleCalendar from '../../assets/logos/google-calendar.svg';
+import logoSlack from '../../assets/logos/slack.svg';
 
 // Cada serviço aparece como um cartão próprio. Por baixo, Microsoft e Google usam um único login por empresa:
 // conectar um cartão da família conecta todos os outros da mesma conta.
@@ -20,16 +28,17 @@ const SERVICE_CARDS = [
   { key: 'teams', parent: 'microsoft', name: 'Microsoft Teams', logo: logoTeams, services: ['Teams'], summary: 'Mensagens em canais das equipes e conversas diretas com pessoas da empresa.' },
   { key: 'onedrive', parent: 'microsoft', name: 'OneDrive', logo: logoOnedrive, services: ['OneDrive'], summary: 'Buscar arquivos e salvar relatórios, atas e resumos no OneDrive.' },
   { key: 'sharepoint', parent: 'microsoft', name: 'SharePoint', logo: logoSharepoint, services: ['SharePoint'], summary: 'Buscar documentos em todos os sites do SharePoint da empresa.' },
-  { key: 'gmail', parent: 'google', name: 'Gmail', monogram: 'M', services: ['Gmail'], summary: 'Enviar, buscar e responder e-mails pela conta Google da empresa.' },
-  { key: 'gcal', parent: 'google', name: 'Google Agenda', monogram: '31', services: ['Agenda'], summary: 'Criar eventos com link do Meet e consultar a agenda.' },
+  { key: 'gmail', parent: 'google', name: 'Gmail', logo: logoGmail, services: ['Gmail'], summary: 'Enviar, buscar e responder e-mails pela conta Google da empresa.' },
+  { key: 'gcal', parent: 'google', name: 'Google Agenda', logo: logoGoogleCalendar, services: ['Agenda'], summary: 'Criar eventos com link do Meet e consultar a agenda.' },
+  { key: 'gmeet', parent: 'google', name: 'Google Meet', logo: logoGoogleMeet, services: ['Agenda'], summary: 'Reuniões com link do Meet criadas junto com os eventos da agenda, além de remarcar e cancelar.' },
   { key: 'gdrive', parent: 'google', name: 'Google Drive', logo: logoGoogleDrive, services: ['Drive'], summary: 'Criar documentos e buscar arquivos no Drive.' },
   { key: 'gchat', parent: 'google', name: 'Google Chat', logo: logoGoogleChat, services: ['Google Chat'], summary: 'Enviar mensagens nos espaços do Google Chat.' },
-  { key: 'gsheets', parent: 'google', name: 'Google Planilhas', monogram: 'P', services: ['Planilhas'], summary: 'Criar, ler e atualizar planilhas.' },
-  { key: 'gdocs', parent: 'google', name: 'Google Docs', monogram: 'D', services: ['Documentos'], summary: 'Ler documentos e acrescentar texto.' },
-  { key: 'gslides', parent: 'google', name: 'Google Apresentações', monogram: 'A', services: ['Apresentações'], summary: 'Criar e ler apresentações.' },
-  { key: 'gforms', parent: 'google', name: 'Google Formulários', monogram: 'F', services: ['Formulários'], summary: 'Criar formulários e ler as respostas.' },
+  { key: 'gsheets', parent: 'google', name: 'Google Planilhas', logo: logoGoogleSheets, services: ['Planilhas'], summary: 'Criar, ler e atualizar planilhas.' },
+  { key: 'gdocs', parent: 'google', name: 'Google Docs', logo: logoGoogleDocs, services: ['Documentos'], summary: 'Ler documentos e acrescentar texto.' },
+  { key: 'gslides', parent: 'google', name: 'Google Apresentações', logo: logoGoogleSlides, services: ['Apresentações'], summary: 'Criar e ler apresentações.' },
+  { key: 'gforms', parent: 'google', name: 'Google Formulários', logo: logoGoogleForms, services: ['Formulários'], summary: 'Criar formulários e ler as respostas.' },
 ];
-const PROVIDER_LOGOS = { whatsapp: logoWhatsapp, telegram: logoTelegram };
+const PROVIDER_LOGOS = { whatsapp: logoWhatsapp, telegram: logoTelegram, slack: logoSlack };
 const FAMILY = {
   microsoft: { account: 'Microsoft', members: 'Outlook, Teams, OneDrive e SharePoint' },
   google: { account: 'Google', members: 'Gmail, Agenda, Drive, Chat, Planilhas, Docs, Apresentações e Formulários' },
