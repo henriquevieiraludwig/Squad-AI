@@ -27,3 +27,22 @@ it('usa o endereço da API do provedor quando informado', async () => {
   }
   assert.throws(() => apiBase('http://inseguro.com'), /https/);
 });
+
+import { createHmac } from 'node:crypto';
+import { verifySignature } from '../server/connectors/whatsapp.js';
+
+it('confere a assinatura da Datafy (timestamp.corpo) e da Meta', () => {
+  const raw = Buffer.from('{"object":"whatsapp_business_account","entry":[]}');
+  const ts = String(Math.floor(Date.now() / 1000));
+  const sig = (secret, data) => 'sha256=' + createHmac('sha256', secret).update(data).digest('hex');
+  const datafy = { appSecret: 'whsec_abc' };
+  const h = (map) => (name) => map[name.toLowerCase()];
+  assert.ok(verifySignature(datafy, raw, h({ 'x-datafy-timestamp': ts, 'x-datafy-signature-256': sig('whsec_abc', `${ts}.${raw}`) })));
+  assert.ok(!verifySignature(datafy, raw, h({ 'x-datafy-timestamp': ts, 'x-datafy-signature-256': sig('whsec_outro', `${ts}.${raw}`) })));
+  const old = String(Number(ts) - 600);
+  assert.ok(!verifySignature(datafy, raw, h({ 'x-datafy-timestamp': old, 'x-datafy-signature-256': sig('whsec_abc', `${old}.${raw}`) })));
+  const meta = { appSecret: 'segredo' };
+  assert.ok(verifySignature(meta, raw, h({ 'x-hub-signature-256': sig('segredo', raw) })));
+  assert.ok(!verifySignature(meta, raw, h({ 'x-hub-signature-256': sig('errado', raw) })));
+  assert.ok(verifySignature({}, raw, h({})));
+});

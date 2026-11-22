@@ -168,7 +168,7 @@ export function registerIntegrationRoutes(app) {
     const integ = await integrationByKey('whatsapp', req.params.key);
     if (!integ) return res.sendStatus(404);
     const creds = decrypt(integ.credentials_enc);
-    if (!connectors.whatsapp.verifySignature(creds, req.rawBody || Buffer.alloc(0), req.get('X-Hub-Signature-256'))) return res.sendStatus(401);
+    if (!connectors.whatsapp.verifySignature(creds, req.rawBody || Buffer.alloc(0), (name) => req.get(name))) return res.sendStatus(401);
     for (const msg of connectors.whatsapp.parseInbound(req.body)) {
       await enqueue('mensagem_recebida', { integrationId: integ.id, provider: 'whatsapp', msg });
     }

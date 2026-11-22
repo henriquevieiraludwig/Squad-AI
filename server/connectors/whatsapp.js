@@ -86,13 +86,24 @@ export const actions = {
   },
 };
 
-// Confere a assinatura X-Hub-Signature-256 quando a chave secreta do app foi informada.
+// Confere a assinatura das mensagens recebidas, quando a chave secreta foi informada.
+// Meta: X-Hub-Signature-256 = HMAC(corpo) com a chave secreta do app.
+// Datafy (secret whsec_...): x-datafy-signature-256 = HMAC("{timestamp}.{corpo}"), com no máximo 5 minutos.
 export function verifySignature(creds, rawBody, header) {
   if (!creds.appSecret) return true;
-  if (!header?.startsWith('sha256=')) return false;
-  const expected = createHmac('sha256', creds.appSecret).update(rawBody).digest();
-  const got = Buffer.from(header.slice(7), 'hex');
-  return got.length === expected.length && timingSafeEqual(got, expected);
+  const get = typeof header === 'function' ? header : (name) => (/hub-signature/i.test(name) ? header : undefined);
+  const same = (sig, data) => {
+    if (!sig?.startsWith('sha256=')) return false;
+    const expected = createHmac('sha256', creds.appSecret).update(data).digest();
+    const got = Buffer.from(sig.slice(7), 'hex');
+    return got.length === expected.length && timingSafeEqual(got, expected);
+  };
+  if (creds.appSecret.startsWith('whsec_')) {
+    const ts = String(get('x-datafy-timestamp') || '');
+    if (!/^\d+$/.test(ts) || Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
+    return same(get('x-datafy-signature-256'), Buffer.concat([Buffer.from(`${ts}.`), rawBody]));
+  }
+  return same(get('X-Hub-Signature-256'), rawBody);
 }
 
 export function parseInbound(payload) {
