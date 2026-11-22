@@ -19,6 +19,9 @@ export function apiBase(value) {
     throw new ConnectorError('O endereço da API precisa ser um link completo, começando com https://', { status: 400 });
   }
   if (u.protocol !== 'https:') throw new ConnectorError('O endereço da API precisa começar com https://', { status: 400 });
+  if (/\/dashboard(\/|$)/i.test(u.pathname)) {
+    throw new ConnectorError('Esse é o link do painel do provedor, não o da API. Abra o "Como usar" e copie o endereço que aparece nos exemplos de envio de mensagem (a parte antes de /<id do número>/messages).', { status: 400 });
+  }
   return v;
 }
 const baseOf = (creds) => creds.apiBase || GRAPH;
