@@ -453,12 +453,12 @@ export function registerOrgRoutes(app) {
       where += ` AND (c.contact_label ILIKE $${params.length} OR a.name ILIKE $${params.length})`;
     }
     const rows = await db.all(
-      `SELECT c.id, c.channel, c.contact_label, c.handled_by, c.last_message_at, a.name AS agent_name, a.avatar AS agent_avatar, u.name AS assigned_name,
+      `SELECT c.id, c.agent_id, c.channel, c.contact_label, c.handled_by, c.last_message_at, a.name AS agent_name, a.avatar AS agent_avatar, u.name AS assigned_name,
               (SELECT content FROM messages m WHERE m.conversation_id = c.id AND m.author IN ('contato', 'agente', 'humano') ORDER BY m.id DESC LIMIT 1) AS last_content,
               (SELECT COUNT(*)::int FROM action_runs r WHERE r.conversation_id = c.id AND r.status = 'pendente') AS pending
          FROM conversations c JOIN agents a ON a.id = c.agent_id LEFT JOIN users u ON u.id = c.assigned_user
         WHERE ${where} AND EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id)
-        ORDER BY c.last_message_at DESC LIMIT 100`,
+        ORDER BY c.last_message_at DESC LIMIT 300`,
       params,
     );
     res.json({
@@ -468,6 +468,7 @@ export function registerOrgRoutes(app) {
         contact: r.contact_label,
         handledBy: r.handled_by,
         assignedTo: r.assigned_name,
+        agentId: r.agent_id,
         agentName: r.agent_name,
         agentAvatar: r.agent_avatar || null,
         lastMessageAt: r.last_message_at,

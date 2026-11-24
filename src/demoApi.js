@@ -742,7 +742,7 @@ async function companyRoutes(s, method, path, body) {
       return {
         conversations: convs
           .sort((a, b) => (b.lastMessageAt > a.lastMessageAt ? 1 : -1))
-          .map((c) => ({ id: c.id, channel: 'teste', contact: c.contact, handledBy: 'agente', agentName: agentName(c.agentId), agentAvatar: agentAvatar(c.agentId), lastMessageAt: c.lastMessageAt, preview: c.messages.at(-1)?.text.slice(0, 140), pending: 0 })),
+          .map((c) => ({ id: c.id, agentId: c.agentId, channel: 'teste', contact: c.contact, handledBy: 'agente', agentName: agentName(c.agentId), agentAvatar: agentAvatar(c.agentId), lastMessageAt: c.lastMessageAt, preview: c.messages.at(-1)?.text.slice(0, 140), pending: 0 })),
       };
     }
   }
