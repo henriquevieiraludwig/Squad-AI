@@ -268,7 +268,9 @@ export default function Integrations({ user, notify, refreshSummary }) {
 
 function IntegrationCard({ p, parent, agents, busy, confirming, onConnect, onAskDisconnect, onCancelDisconnect, onDisconnect, onRoute, notify, editable }) {
   let status;
+  const soon = p.comingSoon && !p.connected;
   if (p.connected) status = <span className="pill pill-ok">Conectado</span>;
+  else if (soon) status = <span className="pill pill-warn">Em andamento</span>;
   else if (!p.platformReady) status = <span className="pill pill-neutral">Aguardando configuração</span>;
   else status = <span className="pill pill-neutral">Não conectado</span>;
 
@@ -299,7 +301,8 @@ function IntegrationCard({ p, parent, agents, busy, confirming, onConnect, onAsk
       )}
       {p.family && <p className="integration-family muted">Mesmo login da conta {p.family.account}: conectar aqui libera todos os apps {p.family.account}.</p>}
 
-      {!p.platformReady && !p.connected && (
+      {soon && <p className="integration-note integration-note-soft">Estamos finalizando esta integração. Em breve ela poderá ser conectada.</p>}
+      {!soon && !p.platformReady && !p.connected && (
         <p className="integration-note">Esta integração ainda não foi liberada na plataforma. Fale com o suporte.</p>
       )}
       {p.note && <p className="integration-note integration-note-soft">{p.note}</p>}
@@ -328,6 +331,10 @@ function IntegrationCard({ p, parent, agents, busy, confirming, onConnect, onAsk
               Desconectar
             </button>
           )
+        ) : soon ? (
+          <button className="btn btn-secondary btn-sm" disabled title="Integração em andamento">
+            Em breve
+          </button>
         ) : (
           <button className="btn btn-dark btn-sm" onClick={onConnect} disabled={busy || !p.platformReady}>
             {busy && <span className="spinner" aria-hidden="true" />}

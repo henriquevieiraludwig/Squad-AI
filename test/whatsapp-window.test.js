@@ -50,3 +50,24 @@ it('relatório de consumo: custo pelo preço do modelo, por agente e canal, só 
   await other.post('/api/auth/signup', { name: 'Duda', company: 'Loja Sol2', email: 'duda@sol2.com', password: 'senhaforte1' });
   assert.equal((await other.get('/api/usage/report')).body.total.turns, 0);
 });
+
+it('integrações em andamento (Microsoft, Slack, Telegram) aparecem bloqueadas e não conectam', async () => {
+  const c = P.client();
+  await c.post('/api/auth/signup', { name: 'Gil', company: 'Loja Lua', email: 'gil@lua.com', password: 'senhaforte1' });
+  process.env.ENABLE_ALL_INTEGRATIONS = '0';
+  try {
+    const list = (await c.get('/api/integrations')).body.providers;
+    const by = Object.fromEntries(list.map((p) => [p.id, p]));
+    assert.equal(by.microsoft.comingSoon, true);
+    assert.equal(by.slack.comingSoon, true);
+    assert.equal(by.telegram.comingSoon, true);
+    assert.equal(by.google.comingSoon, false);
+    assert.equal(by.whatsapp.comingSoon, false);
+    const r = await c.post('/api/integrations/telegram', { botToken: '123:abc' });
+    assert.equal(r.status, 409);
+    assert.match(r.body.error, /em andamento/);
+    assert.equal((await c.post('/api/integrations/microsoft/oauth', {})).status, 409);
+  } finally {
+    process.env.ENABLE_ALL_INTEGRATIONS = '1';
+  }
+});

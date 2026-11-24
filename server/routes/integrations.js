@@ -23,6 +23,10 @@ const safeEqual = (a, b) => {
 
 const originOf = (req) => `${req.protocol}://${req.get('host')}`;
 
+// Integrações em andamento aparecem na tela, mas não podem ser conectadas.
+// ENABLE_ALL_INTEGRATIONS=1 libera todas (usado nos testes e para homologar antes do lançamento).
+const isComingSoon = (id) => Boolean(PROVIDER_BY_ID[id]?.comingSoon) && process.env.ENABLE_ALL_INTEGRATIONS !== '1';
+
 export function registerIntegrationRoutes(app) {
   app.get('/api/integrations', requireOrg(), h(async (req, res) => {
     const [rows, routeRows, agents] = await Promise.all([
@@ -39,6 +43,7 @@ export function registerIntegrationRoutes(app) {
       const readiness = platformReady(p.via || p.id, req.partner);
       const out = {
         ...p,
+        comingSoon: isComingSoon(p.via || p.id),
         connected: Boolean(conn),
         accountLabel: conn?.account_label || '',
         connectedAt: conn?.created_at || null,
@@ -84,6 +89,7 @@ export function registerIntegrationRoutes(app) {
 
   app.post('/api/integrations/:provider/oauth', requireOrg('configurar'), h(async (req, res) => {
     const { provider } = req.params;
+    if (isComingSoon(provider)) return res.status(409).json({ error: `A integração com ${PROVIDER_BY_ID[provider].name} está em andamento e ainda não pode ser conectada.` });
     const oauth = connectors[provider]?.oauth;
     if (!oauth) return res.status(404).json({ error: 'Esta integração não usa login externo.' });
     const cfg = oauthConfig(req.partner, provider);
@@ -131,6 +137,7 @@ export function registerIntegrationRoutes(app) {
 
   app.post('/api/integrations/:provider', requireOrg('configurar'), h(async (req, res) => {
     const { provider } = req.params;
+    if (isComingSoon(provider)) return res.status(409).json({ error: `A integração com ${PROVIDER_BY_ID[provider].name} está em andamento e ainda não pode ser conectada.` });
     const tokenImpl = connectors[provider]?.token;
     if (!tokenImpl) return res.status(404).json({ error: 'Esta integração não aceita conexão por token.' });
     const def = PROVIDER_BY_ID[provider];

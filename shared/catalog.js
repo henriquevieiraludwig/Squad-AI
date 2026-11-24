@@ -4,6 +4,7 @@
 export const PROVIDERS = [
   {
     id: 'microsoft',
+    comingSoon: true, // em andamento: aparece na tela, mas ainda não pode ser conectado
     name: 'Microsoft 365',
     group: 'produtividade',
     auth: 'oauth',
@@ -48,6 +49,7 @@ export const PROVIDERS = [
   },
   {
     id: 'telegram',
+    comingSoon: true, // em andamento: aparece na tela, mas ainda não pode ser conectado
     name: 'Telegram',
     group: 'comunicacao',
     auth: 'token',
@@ -63,6 +65,7 @@ export const PROVIDERS = [
   },
   {
     id: 'slack',
+    comingSoon: true, // em andamento: aparece na tela, mas ainda não pode ser conectado
     name: 'Slack',
     group: 'comunicacao',
     auth: 'oauth',

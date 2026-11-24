@@ -47,6 +47,7 @@ export async function startPlatform() {
   process.env.ANTHROPIC_API_KEY = 'teste';
   process.env.ANTHROPIC_BASE_URL = fakes.url;
   process.env.TELEGRAM_API_URL = fakes.url;
+  process.env.ENABLE_ALL_INTEGRATIONS = '1'; // os testes cobrem também as integrações em andamento
   process.env.PUBLIC_URL = 'http://plataforma.test';
   process.env.APP_URL = 'http://plataforma.test';
   if (!process.env.DATABASE_URL) process.env.PGLITE_DIR = 'memory://';
